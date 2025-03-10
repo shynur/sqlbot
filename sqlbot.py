@@ -1,4 +1,4 @@
-#! python3.13
+#! python3.12
 # -*- coding: utf-8-unix; -*-
 
 # 标准库

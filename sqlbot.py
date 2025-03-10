@@ -1,5 +1,5 @@
-#! python3.12
-# -*- coding: utf-8-unix; -*-
+#! /bin/python3.12
+# -*- coding: utf-8; -*-
 
 # 标准库
 import sqlite3
@@ -144,7 +144,9 @@ def gen_context(user_query: str) -> str:
         # 这种情况下, 直接返回 “已知 目前 数据库里 没有表.”.
         return db_info
 
-    all_tables: list[str] = db.execute("SELECT name FROM sqlite_master;").fetchall()
+    all_tables: list[str] = [
+        row["name"] for row in db.execute("SELECT name FROM sqlite_master;").fetchall()
+    ]
 
     def get_unrelated_tables() -> list[str]:
         """返回排好序的无关表名."""
@@ -179,12 +181,13 @@ def gen_context(user_query: str) -> str:
             response = "\n".join(response.splitlines()[1:]).split("```")[1]
 
         related_tables: list[str] = json.loads(response)
+        # AI 可能不小心把字段名也包含进去了, 我们手动一个一个删掉:
         for i, table in enumerate(related_tables):
             related_tables[i] = table.strip().split()[0]
         # 此时 `related_tables` 形如 ["a", "b"].
 
         unrelated_tables: list[str] = [
-            table for table, in all_tables if table not in related_tables
+            table for table in all_tables if table not in related_tables
         ]
         return sorted(unrelated_tables)
 
@@ -426,7 +429,7 @@ def polish(query: str) -> str:
 鉴于你现在已经理解了用户的请求, 那么就请你假装成用户, 然后提出问题吧!
 
 (注意: 你不被允许提及数据库的背景信息, 即数据库里有哪些表.)
-""".strip(),
+            """.strip(),
         }
     )
     polished_query: str = most_representative_of(
@@ -482,13 +485,13 @@ def get_sql(
         sql = iter(sqls)
         return most_representative_of(
             lambda: next(sql),
-            loop=num_tries,
+            loop=len(sqls),
         )
     else:
         err = iter(errors)
         err_s: str = most_representative_of(
             lambda: str(next(err)),
-            loop=num_tries,
+            loop=len(errs),
         )
         for err in errors:
             if str(err) == err_s:

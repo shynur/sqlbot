@@ -1,5 +1,5 @@
 #! /bin/python3.12
-# -*- coding: utf-8; -*-
+# -*- coding: utf-8-unix; -*-
 
 # 标准库
 import sqlite3
@@ -14,7 +14,7 @@ from typing import (
     Iterable,
 )
 
-# 第三方库, 记得 pip install 哦~
+# 第三方库, 记得 python3 -m pip install.
 import openai
 import numpy
 import sklearn.feature_extraction.text
@@ -628,19 +628,18 @@ while True:
             sql = user_input_sql
         print()
 
-        with db:
-            res = db.execute(sql)
         match sql.split()[0].upper():
             # 如果是查询语句, 我们直接打印.
             case "SELECT":
+                with db:
+                    res = db.execute(sql).fetchall()
                 print_res(res)
-            case "INSERT":
-                print(f"成功执行 SQL 语句: {sql}")
+
+            case "INSERT" | "DELETE":
+                ...
             case "UPDATE":
                 ...
             case "CREATE":
-                ...
-            case "DELETE":
                 ...
             case "DROP":
                 ...

@@ -8,9 +8,11 @@ import json
 import concurrent.futures
 import threading
 import os
+from turtle import width
 from typing import (
     Any,
     Callable,
+    Iterable,
 )
 
 # 第三方库, 记得 pip install 哦~
@@ -219,8 +221,12 @@ def sql_valid_p(sql: str) -> bool:
     with db_lock:
         try:
             db.execute(sql)
-        except sqlite3.OperationalError:
-            # 只有此类型的错误才属于 user error, 其它错误说明我们的代码有问题.
+        except (
+            # 只有此类型的错误才属于 user error:
+            sqlite3.OperationalError,
+            # 出现了多条 SQL 语句:
+            sqlite3.ProgrammingError,
+        ):
             return False
         else:
             return True
@@ -253,6 +259,7 @@ def gen_sql(
 
 注意:
 - 如果是 CREATE 语句, 你 将 省略 数据类型, 因为 SQLite 支持 flexible typing.
+- 你只能 将 用户 的 请求 转译成 **一句** SQL 语句, 哪怕你认为应该用多句 SQL 语句.
                         """.strip(),
         },
         {"role": "user", "content": prompt},
@@ -491,11 +498,45 @@ def get_sql(
         err = iter(errors)
         err_s: str = most_representative_of(
             lambda: str(next(err)),
-            loop=len(errs),
+            loop=len(errors),
         )
         for err in errors:
             if str(err) == err_s:
                 raise err
+
+
+def print_res(res: Iterable[dict[str, Any]]) -> None:
+    """展示查询结果.
+
+    如果数据是
+      - 标量: 直接打印.
+      - 列表: 先打印列名, 再打印各行数据.
+      - 二维表格: 用 Web 页面展示.
+    """
+
+    res: list[dict[str, Any]] = list(res)
+
+    height: int = len(res)
+    print(f"查询到 {height} 条记录.")
+
+    # 没有数据, 直接返回.
+    if height == 0:
+        return
+
+    match height, width := len(res[0]):
+        # 标量:
+        case 1, 1:
+            print(f"结果: {res[0][0]}")
+        # 列表:
+        case _, 1:
+            field: str = next(iter(res[0]))
+            print({field: [row[field] for row in res]})
+        # 二维表格:
+        case _, _:
+            fields: tuple[str] = tuple(res[0])
+            rows: list[tuple] = [tuple(row.values()) for row in res]
+
+            # 立即用 Web 弹出窗口, 展示二维表格.
 
 
 while True:
@@ -546,8 +587,8 @@ while True:
 
         with db:
             res = db.execute(sql)
-        for row in res:
-            print(row)
+        # 判断 是 SELECT 还是 ...
+        print_res(res)
         print()
 
     # 用户刻意输入了 `^Z`, 以开启新一轮会话.

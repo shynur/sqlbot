@@ -2,7 +2,6 @@
 # -*- coding: utf-8; -*-
 
 # 标准库
-from copyreg import dispatch_table
 import sqlite3
 import logging
 import json

@@ -2,13 +2,13 @@
 # -*- coding: utf-8; -*-
 
 # 标准库
+from copyreg import dispatch_table
 import sqlite3
 import logging
 import json
 import concurrent.futures
 import threading
 import os
-from turtle import width
 from typing import (
     Any,
     Callable,
@@ -19,6 +19,7 @@ from typing import (
 import openai
 import numpy
 import sklearn.feature_extraction.text
+import plotly.graph_objects
 import sklearn.metrics.pairwise
 import sqlparse
 
@@ -165,9 +166,9 @@ def gen_context(user_query: str) -> str:
 你的任务是:
 分析用户的输入,
 用 JSON Array 的形式 (必须形如 `["table_name_1", "table_name_2", ...]`),
-列出你认为与用户的请求 *可能有关* 的 table 的名字.
+列出你认为与用户的请求 *可能有关* 的 table 的名字 (哪怕是半毛钱关系).
 
-注意: 用户 使用 自然语言 发起 数据库 查询请求.
+注意: 用户 使用 *自然语言* 发起 数据库 查询请求.
                     """.strip(),
                     },
                     {"role": "user", "content": user_query},
@@ -205,7 +206,7 @@ def gen_context(user_query: str) -> str:
     tables_to_ignore: list[str] = dict(unrelated_tables_candidates)[unrelated_tables]
     logger.info(f"\033[32m要忽略的表\033[0m {tables_to_ignore=!s}\n")
 
-    _, db_info = get_db_info(ignore=frozenset(unrelated_tables))
+    _, db_info = get_db_info(ignore=frozenset(tables_to_ignore))
     return db_info
 
 
@@ -258,7 +259,7 @@ def gen_sql(
 你负责帮助用户 将 自然语言 的 查询请求 转译为 SQL (数据库使用 SQLite3).
 
 注意:
-- 如果是 CREATE 语句, 你 将 省略 数据类型, 因为 SQLite 支持 flexible typing.
+- 如果是 `CREATE TABLE` 语句, 你 **绝不应该** 书写 字段的数据类型, 因为 SQLite 支持 flexible typing.
 - 你只能 将 用户 的 请求 转译成 **一句** SQL 语句, 哪怕你认为应该用多句 SQL 语句.
                         """.strip(),
         },
@@ -370,8 +371,6 @@ def gen_sql(
             .choices[0]
             .message.content
         ).strip()
-
-        logger.info(f"\033[32m需求无法实现的理由\033[0m {reason=!s}\n")
         err.add_note(response)
 
         raise
@@ -387,7 +386,7 @@ def polish(query: str) -> str:
         {
             "role": "system",
             "content": f"""
-你是一位数据库管理人员.
+你是一位 SQLite3 数据库管理人员.
 {get_db_info()}
 
 用户会用自然语言请求查询数据库.
@@ -395,6 +394,9 @@ def polish(query: str) -> str:
 
 在你确认你能够理解用户的请求时, 回答 “Understood.” 这句话, 不能多也不能少;
 否则, 就你不理解的地方, 继续询问用户.
+
+注意:
+我们使用的 SQLite 支持 flexible typing 特性, 因此绝不需要指定数据类型.
 """.strip(),
         },
         {
@@ -475,12 +477,12 @@ def get_sql(
     # 保证有奇数个结果, 这样就不会出现平局.
 
     sqls: list[str] = []
-    errors: list[sqlite3.OperationalError] = []
+    errors: list[sqlite3.OperationalError | sqlite3.ProgrammingError] = []
 
     def gen_sql_noexcept() -> None:
         try:
             return sqls.append(gen_sql(prompt))
-        except sqlite3.OperationalError as err:
+        except (sqlite3.OperationalError, sqlite3.ProgrammingError) as err:
             return errors.append(err)
 
     # 并发地获取多个来自 AI 的回答.
@@ -536,13 +538,42 @@ def print_res(res: Iterable[dict[str, Any]]) -> None:
             fields: tuple[str] = tuple(res[0])
             rows: list[tuple] = [tuple(row.values()) for row in res]
 
-            # 立即用 Web 弹出窗口, 展示二维表格.
+            # 立即用 Web 弹出窗口进行展示:
+
+            # 将每行数据转置为每列数据:
+            columns = list(zip(*rows))
+            # 创建表格
+            figure = plotly.graph_objects.Figure(
+                data=[
+                    plotly.graph_objects.Table(
+                        header=dict(
+                            values=list(fields),
+                            fill_color="paleturquoise",
+                            align="center",
+                            font=dict(color="black", size=16),
+                        ),
+                        cells=dict(
+                            values=columns,
+                            fill_color="lavender",
+                            align="center",
+                            font=dict(color="black", size=14),
+                        ),
+                    )
+                ]
+            )
+            # 优化布局:
+            figure.update_layout(
+                title="Data Table",
+                margin=dict(l=20, r=20, t=40, b=20),
+            )
+            # 显示图表:
+            figure.show()
 
 
 while True:
     try:
         print(
-            "********************************** 新一轮会话 **********************************"
+            "\n********************************** 新一轮会话 **********************************"
         )
 
         # 获取用户的初始请求.  (忽略任何空白输入.)
@@ -557,7 +588,20 @@ while True:
         prompt: str = gen_context(user_query) + "\n\n" + user_query
         logger.info(f"\033[32m正式提问\033[0m {prompt=!s}\n")
 
-        sql: str = get_sql(prompt)
+        try:
+            sql: str = get_sql(prompt)
+        except (sqlite3.OperationalError, sqlite3.ProgrammingError) as err:
+            print(
+                f"""
+                \033[31m{err}\033[0m: {err}
+\033[94mAI:\033[0m  您的请求可能不合理, 导致难以实现.  请听我解释...
+
+{'\n'.join(f"    {line}" for line in err.__notes__[0].splitlines())}
+
+您需要重新提出请求.
+""".strip()
+            )
+            continue
         # 格式化 SQL 语句:
         sql = sqlparse.format(
             sql,
@@ -587,8 +631,22 @@ while True:
 
         with db:
             res = db.execute(sql)
-        # 判断 是 SELECT 还是 ...
-        print_res(res)
+        match sql.split()[0].upper():
+            # 如果是查询语句, 我们直接打印.
+            case "SELECT":
+                print_res(res)
+            case "INSERT":
+                print(f"成功执行 SQL 语句: {sql}")
+            case "UPDATE":
+                ...
+            case "CREATE":
+                ...
+            case "DELETE":
+                ...
+            case "DROP":
+                ...
+            case _:
+                print(f"成功执行 SQL 语句: {sql}")
         print()
 
     # 用户刻意输入了 `^Z`, 以开启新一轮会话.

@@ -745,8 +745,6 @@ while True:
                 # 我们用 diff SQL dump 的方式来获取即将被更新的行.
 
                 old_dump: set[str] = {*db.iterdump()}
-                print(f"old_dump: {old_dump=!r}")
-                exit()
 
                 db.execute(sql)
                 new_dump: set[str] = {*db.iterdump()}

@@ -2,16 +2,20 @@
 # -*- coding: utf-8-unix; -*-
 
 # 标准库
+import re
 import sqlite3
 import logging
 import json
 import concurrent.futures
 import threading
 import os
+import contextlib
+import time
 from typing import (
     Any,
     Callable,
     Iterable,
+    Literal,
 )
 
 # 第三方库, 记得 python3 -m pip install.
@@ -44,7 +48,7 @@ llm_client = openai.OpenAI(
     api_key=os.getenv("TongYiQianWen_API_key"),
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
-llm_name = "qwen2.5-14b-instruct-1m"
+llm_name: Literal["qwen2.5-14b-instruct-1m"] = "qwen2.5-14b-instruct-1m"
 
 
 def most_representative_of(
@@ -569,6 +573,81 @@ def print_res(res: Iterable[dict[str, Any]]) -> None:
             figure.show()
 
 
+def print_updated_then_confirm(
+    old_records: list[dict[str, Any]],
+    new_records: list[dict[str, Any]],
+) -> bool:
+    """展示更新前后的涉及的记录, 并询问用户是否继续.
+
+    1. 在命令行提示即将打开 Web 展示数据.
+    2. 然后打开 Web, 左侧显示旧数据, 右侧显示新数据.
+    3. 命令行询问用户是否确认要 UPDATE 表格.
+    """
+
+    assert old_records and new_records
+
+    print("即将打开 Web 页面, 向您展示更新前后的数据", end="")
+    for _ in range(3):
+        print(".", end="", flush=True)
+        time.sleep(1)
+    print()
+
+    # 两个表格的列名:
+    fields: tuple[str, ...] = tuple(old_records[0])
+
+    # 旧表格的数据:
+    old_rows: list[tuple] = [tuple(row.values()) for row in old_records]
+    # 新表格的数据:
+    new_rows: list[tuple] = [tuple(row.values()) for row in new_records]
+
+    # 将每行数据转置为每列数据:
+    old_columns = list(zip(*old_rows))
+    new_columns = list(zip(*new_rows))
+
+    # 创建表格
+    figure = plotly.graph_objects.Figure(
+        data=[
+            plotly.graph_objects.Table(
+                header=dict(
+                    values=list(fields),
+                    fill_color="paleturquoise",
+                    align="center",
+                    font=dict(color="black", size=16),
+                ),
+                cells=dict(
+                    values=old_columns,
+                    fill_color="lavender",
+                    align="center",
+                    font=dict(color="black", size=14),
+                ),
+            ),
+            plotly.graph_objects.Table(
+                header=dict(
+                    values=list(fields),
+                    fill_color="paleturquoise",
+                    align="center",
+                    font=dict(color="black", size=16),
+                ),
+                cells=dict(
+                    values=new_columns,
+                    fill_color="lavender",
+                    align="center",
+                    font=dict(color="black", size=14),
+                ),
+            ),
+        ]
+    )
+    # 优化布局:
+    figure.update_layout(
+        title="Data Table",
+        margin=dict(l=20, r=20, t=40, b=20),
+    )
+    # 显示图表:
+    figure.show()
+
+    return "y" == input("""确定要更新吗?  (Y/N): """).strip().lower()
+
+
 while True:
     try:
         print(
@@ -666,6 +745,8 @@ while True:
                 # 我们用 diff SQL dump 的方式来获取即将被更新的行.
 
                 old_dump: set[str] = {*db.iterdump()}
+                print(f"old_dump: {old_dump=!r}")
+                exit()
 
                 db.execute(sql)
                 new_dump: set[str] = {*db.iterdump()}
@@ -674,6 +755,56 @@ while True:
                 common_lines: set[str] = old_dump & new_dump
                 old_dump -= common_lines
                 new_dump -= common_lines
+
+                if len(old_dump) == 0:
+                    assert len(new_dump) == 0
+                    print("没有记录被更新.")
+                    continue
+
+                updated_table: str = re.fullmatch(
+                    r'INSERT INTO "([^"]+)" VALUES\(.*\);',
+                    next(iter(old_dump)),
+                )[1]
+                # 查找创建表的 SQL 语句:
+                for line in common_lines:
+                    if re.fullmatch(
+                        f"CREATE TABLE {updated_table} \(.*\);",
+                        line,
+                    ):
+                        creating_sql: str = line
+                        break
+                # 创建一个 in-memory 数据库:
+                with contextlib.closing(
+                    sqlite3.connect(
+                        ":memory:",
+                        autocommit=False,
+                        check_same_thread=False,
+                    )
+                ) as tmp_db:
+                    tmp_db.row_factory = db.row_factory
+                    # 创建刚刚被更新的表:
+                    with tmp_db:
+                        tmp_db.execute(creating_sql)
+                    # 插入旧数据:
+                    for line in old_dump:
+                        tmp_db.execute(line)
+                    old_records: list[dict[str, Any]] = tmp_db.execute(
+                        f'SELECT * FROM "{updated_table}";'
+                    ).fetchall()
+                    tmp_db.rollback()
+                    # 插入新数据:
+                    for line in new_dump:
+                        tmp_db.execute(line)
+                    new_records: list[dict[str, Any]] = tmp_db.execute(
+                        f'SELECT * FROM "{updated_table}";'
+                    ).fetchall()
+
+                if not print_updated_then_confirm(old_records, new_records):
+                    print("已取消.")
+                    continue
+                else:
+                    with db:
+                        db.execute(sql)
 
             # 创建表, 直接创建即可.
             case "CREATE":

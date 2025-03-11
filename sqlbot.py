@@ -518,7 +518,7 @@ def print_res(res: Iterable[dict[str, Any]]) -> None:
     res: list[dict[str, Any]] = list(res)
 
     height: int = len(res)
-    print(f"查询到 {height} 条记录.")
+    print(f"一共 {height} 条记录.")
 
     # 没有数据, 直接返回.
     if height == 0:
@@ -634,17 +634,63 @@ while True:
                 with db:
                     res = db.execute(sql).fetchall()
                 print_res(res)
+            # 插入操作, 直接插入即可.
+            case "INSERT":
+                with db:
+                    db.execute(sql)
+            case "DELETE":
+                # 先获取即将删除的行:
+                sql = sql[:-1] + " RETURNING *;"
+                rows_to_del: list[dict[str, Any]] = db.execute(sql).fetchall()
 
-            case "INSERT" | "DELETE":
-                ...
+                if (
+                    "y"
+                    != input(
+                        f"""以下是即将被删除的记录:
+
+{"\n".join(str(row) for row in rows_to_del)}
+
+是否继续?  (Y/N): """
+                    )
+                    .strip()
+                    .lower()
+                ):
+                    print("已取消.")
+                    continue
+                else:
+                    with db:
+                        db.execute(sql)
+            # 更新前, 先获取即将被更新的行.
+            # 然后展示更新后会变成什么样.
             case "UPDATE":
-                ...
+                # 我们用 diff SQL dump 的方式来获取即将被更新的行.
+
+                old_dump: set[str] = {*db.iterdump()}
+
+                db.execute(sql)
+                new_dump: set[str] = {*db.iterdump()}
+                db.rollback()
+
+                common_lines: set[str] = old_dump & new_dump
+                old_dump -= common_lines
+                new_dump -= common_lines
+
+            # 创建表, 直接创建即可.
             case "CREATE":
-                ...
+                with db:
+                    db.execute(sql)
+            # 删除表, 直接删除即可.
             case "DROP":
-                ...
+                with db:
+                    db.execute(sql)
+            # 修改表, 直接修改即可.
+            case "ALTER":
+                with db:
+                    db.execute(sql)
+            # 未知操作, 直接执行
             case _:
-                print(f"成功执行 SQL 语句: {sql}")
+                with db:
+                    db.execute(sql)
         print()
 
     # 用户刻意输入了 `^Z`, 以开启新一轮会话.

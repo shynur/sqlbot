@@ -768,7 +768,7 @@ while True:
                 # 查找创建表的 SQL 语句:
                 for line in common_lines:
                     if re.fullmatch(
-                        f"CREATE TABLE {updated_table} \(.*\);",
+                        rf"CREATE TABLE {updated_table} \(.*\);",
                         line,
                     ):
                         creating_sql: str = line

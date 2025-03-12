@@ -22,9 +22,13 @@ from typing import (
 import openai
 import numpy
 import sklearn.feature_extraction.text
-import plotly.graph_objects
 import sklearn.metrics.pairwise
 import sqlparse
+import plotly.graph_objects
+import plotly.subplots
+import torch
+import transformers
+import faiss
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -44,11 +48,137 @@ db.row_factory = lambda cursor, row: {
     )
 }
 
-llm_client = openai.OpenAI(
-    api_key=os.getenv("TongYiQianWen_API_key"),
+
+class LLM:
+    def __init__(
+        self,
+        *,
+        model_name: str,
+        API_KEY: str,
+        base_url: str,
+    ):
+        self.model_name: str = model_name
+        self.client = openai.OpenAI(
+            api_key=os.getenv(API_KEY),
+            base_url=base_url,
+        )
+
+    def get_response(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        response_format=None,
+    ) -> str:
+        return (
+            self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                **{var: eval(var) for var in ["response_format"] if eval(var)},
+            )
+            .choices[0]
+            .message.content.strip()
+        )
+
+
+qwen: LLM = LLM(
+    model_name="qwen2.5-14b-instruct-1m",
+    API_KEY="TongYiQianWen_API_key",
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
-llm_name: Literal["qwen2.5-14b-instruct-1m"] = "qwen2.5-14b-instruct-1m"
+
+
+class RAG:
+    # 检测 CUDA 是否可用, 并设置设备:
+    torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # 初始化 transformers 模型和 tokenizer:
+    rag_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    rag_tokenizer = transformers.AutoTokenizer.from_pretrained(rag_model_name)
+    rag_model = transformers.AutoModel.from_pretrained(rag_model_name)
+
+    rag_model.to()  # 移动模型到 device.
+    rag_model.eval()
+
+    def __init__(
+        self,
+        doc_path: str,
+        sep: str = "\n\n",
+    ):
+        """加载文档并按指定分隔符切分文档."""
+
+        with open(doc_path, "r", encoding="utf-8") as f:
+            doc: str = f.read()
+
+        # 按空行切分文档:
+        self.doc_chunks: list[str] = [
+            chunk.strip() for chunk in doc.split(sep) if chunk.strip()
+        ]
+
+        # 计算每个文档片段的 embedding, 并建立 FAISS 索引:
+        chunk_embeddings_list: list[numpy.ndarray] = [
+            self.__class__.compute_embedding(chunk) for chunk in self.doc_chunks
+        ]
+
+        # 每个 embedding 的 shape 为 (1, dim), 堆叠成 (n_chunks, dim):
+        chunk_embeddings: numpy.ndarray = numpy.vstack(chunk_embeddings_list)
+        dim: int = chunk_embeddings.shape[1]
+
+        # 使用 FAISS 建立 L2 距离索引:
+        self.index: faiss.IndexFlatL2 = faiss.IndexFlatL2(dim)
+        self.index.add(chunk_embeddings)
+
+    @classmethod
+    def compute_embedding(cls, text: str) -> numpy.ndarray:
+        """利用 transformers 模型对输入文本计算 embedding.
+
+        使用简单的平均池化策略 (考虑 attention mask).
+        """
+
+        encoded_input = cls.rag_tokenizer(
+            text,
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+        )
+        # 将所有 tensor 移动到 device 上:
+        encoded_input = {k: v.to(cls.torch_device) for k, v in encoded_input.items()}
+
+        with torch.no_grad():
+            model_output = cls.rag_model(**encoded_input)
+
+        # 获取 token 层输出, 进行平均池化 (注意考虑 attention mask).
+        token_embeddings: torch.Tensor = (
+            model_output.last_hidden_state
+        )  # [batch_size, seq_len, hidden_size]
+        attention_mask: torch.Tensor = encoded_input["attention_mask"]
+        input_mask_expanded: torch.Tensor = (
+            attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+        )
+        embedding: torch.Tensor = torch.sum(
+            token_embeddings * input_mask_expanded, dim=1
+        ) / torch.clamp(input_mask_expanded.sum(dim=1), min=1e-9)
+
+        # 转为 numpy 数组并归一化，先将 tensor 移动到 CPU:
+        embedding_np: numpy.ndarray = embedding.cpu().numpy()
+        norm: numpy.ndarray = numpy.linalg.norm(embedding_np, axis=1, keepdims=True)
+        return embedding_np / norm
+
+    def retrieve_context(self, query: str, top_k: int) -> list[str]:
+        """给定用户查询, 检索 `top_k` 个最相关的文档片段."""
+
+        query_embedding: numpy.ndarray = self.__class__.compute_embedding(
+            query
+        )  # shape: (1, dim)
+
+        distances: numpy.ndarray
+        indices: numpy.ndarray
+        distances, indices = self.index.search(query_embedding, top_k)
+
+        retrieved_chunks: list[str] = [self.doc_chunks[idx] for idx in indices[0]]
+        return retrieved_chunks
+
+
+sql_doc_retriever: RAG = RAG("sql_doc.txt")
 
 
 def most_representative_of(
@@ -538,7 +668,7 @@ def print_res(res: Iterable[dict[str, Any]]) -> None:
             print({field: [row[field] for row in res]})
         # 二维表格:
         case _, _:
-            fields: tuple[str] = tuple(res[0])
+            fields: tuple[str, ...] = tuple(res[0])
             rows: list[tuple] = [tuple(row.values()) for row in res]
 
             # 立即用 Web 弹出窗口进行展示:
@@ -596,15 +726,17 @@ def print_updated_then_confirm(
     fields: tuple[str, ...] = tuple(old_records[0])
 
     # 旧表格的数据:
-    old_rows: list[tuple] = [tuple(row.values()) for row in old_records]
+    old_rows: list[tuple] = sorted(tuple(row.values()) for row in old_records)
     # 新表格的数据:
-    new_rows: list[tuple] = [tuple(row.values()) for row in new_records]
+    new_rows: list[tuple] = sorted(tuple(row.values()) for row in new_records)
+    # 上下拼接:
+    rows: list[tuple] = old_rows + [tuple("更新后" for _ in fields)] + new_rows
+
+    # TODO: `更新后` 这一行的颜色要改变.
 
     # 将每行数据转置为每列数据:
-    old_columns = list(zip(*old_rows))
-    new_columns = list(zip(*new_rows))
-
-    # 创建表格
+    columns: list[tuple] = list(zip(*rows))
+    # 创建表格:
     figure = plotly.graph_objects.Figure(
         data=[
             plotly.graph_objects.Table(
@@ -615,26 +747,12 @@ def print_updated_then_confirm(
                     font=dict(color="black", size=16),
                 ),
                 cells=dict(
-                    values=old_columns,
+                    values=columns,
                     fill_color="lavender",
                     align="center",
                     font=dict(color="black", size=14),
                 ),
-            ),
-            plotly.graph_objects.Table(
-                header=dict(
-                    values=list(fields),
-                    fill_color="paleturquoise",
-                    align="center",
-                    font=dict(color="black", size=16),
-                ),
-                cells=dict(
-                    values=new_columns,
-                    fill_color="lavender",
-                    align="center",
-                    font=dict(color="black", size=14),
-                ),
-            ),
+            )
         ]
     )
     # 优化布局:
@@ -645,7 +763,7 @@ def print_updated_then_confirm(
     # 显示图表:
     figure.show()
 
-    return "y" == input("""确定要更新吗?  (Y/N): """).strip().lower()
+    return "y" == input("确定要更新吗?  (Y/N): ").lower()
 
 
 while True:

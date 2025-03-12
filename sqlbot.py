@@ -19,6 +19,7 @@ from typing import (
 )
 
 # 第三方库, 记得 python3 -m pip install.
+from httpx import get
 import openai
 import numpy
 import sklearn.feature_extraction.text
@@ -87,6 +88,7 @@ qwen: LLM = LLM(
 )
 
 
+# TODO: RAG 功能稍后集成.
 class RAG:
     # 检测 CUDA 是否可用, 并设置设备:
     torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -286,13 +288,11 @@ def gen_context(user_query: str) -> str:
 
     def get_unrelated_tables() -> list[str]:
         """返回排好序的无关表名."""
-        response: str = (
-            llm_client.chat.completions.create(
-                model=llm_name,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"""
+        response: str = qwen.get_response(
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"""
 你是一名信息检索员, 负责检索出数据库中与用户请求相关的表.
 {db_info}
 
@@ -303,14 +303,11 @@ def gen_context(user_query: str) -> str:
 
 注意: 用户 使用 *自然语言* 发起 数据库 查询请求.
                     """.strip(),
-                    },
-                    {"role": "user", "content": user_query},
-                ],
-                response_format={"type": "json_object"},
-            )
-            .choices[0]
-            .message.content
-        ).strip()
+                },
+                {"role": "user", "content": user_query},
+            ],
+            response_format={"type": "json_object"},
+        )
 
         # 通义千问's bug:
         if response.startswith("```"):
@@ -400,17 +397,12 @@ def gen_sql(
     ]
     # 循环, 直到 AI 生成的 SQL 语句是合法的.
     for _ in range(num_tries):
-        response: str = (
-            llm_client.chat.completions.create(
-                model=llm_name,
-                messages=[
-                    *msgs,
-                    {"role": "assistant", "content": "```sql\n", "partial": True},
-                ],
-            )
-            .choices[0]
-            .message.content
-        ).strip()
+        response: str = qwen.get_response(
+            messages=[
+                *msgs,
+                {"role": "assistant", "content": "```sql\n", "partial": True},
+            ],
+        )
         sql = response.split("```")[0].strip()
 
         # 确保 SQL 语句以分号结尾.
@@ -433,31 +425,26 @@ def gen_sql(
             db.execute(sql)
     except sqlite3.OperationalError as err:
         for _ in range(num_tries):
-            response: str = (
-                llm_client.chat.completions.create(
-                    model=llm_name,
-                    messages=[
-                        *msgs,
-                        {
-                            "role": "user",
-                            "content": f"""
+            response: str = qwen.get_response(
+                messages=[
+                    *msgs,
+                    {
+                        "role": "user",
+                        "content": f"""
 我在 SQLite3 中执行了你给出的 SQL 语句, 结果有如下报错:
 
 {"\n".join(f"> {line}" for line in str(err).splitlines())}
 
 请重新生成 SQL 语句.
                         """.strip(),
-                        },
-                        {
-                            "role": "assistant",
-                            "content": "```sql\n",
-                            "partial": True,
-                        },
-                    ],
-                )
-                .choices[0]
-                .message.content
-            ).strip()
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "```sql\n",
+                        "partial": True,
+                    },
+                ],
+            )
 
             # 梅开二度:
             sql = response.split("```")[0].strip()
@@ -470,24 +457,22 @@ def gen_sql(
         # 在我们把报错信息反馈给 AI, 让他重试了 `NUM_TRIES` 次之后还是失败了...
 
         # 很有可能是用户原本的查询请求压根就不合理, 让我们看看 AI 怎么说.
-        reason: str = (
-            llm_client.chat.completions.create(
-                model=llm_name,
-                messages=[
-                    *msgs,
-                    {
-                        "role": "user",
-                        "content": f"""
+        reason: str = qwen.get_response(
+            messages=[
+                *msgs,
+                {
+                    "role": "user",
+                    "content": f"""
 我在 SQLite3 中执行了你给出的 SQL 语句, 结果有如下报错:
 
 {"\n".join(f"> {line}" for line in str(err).splitlines())}
 
 哪里出了问题呢?
                         """.strip(),
-                    },
-                    {
-                        "role": "assistant",
-                        "content": """
+                },
+                {
+                    "role": "assistant",
+                    "content": """
 你 原本 用 自然语言 提出 的 查询请求 很可能并不合理.
 而我只是 如实地 将 你的请求 转译为 SQL 语句, SQL 语句本身不太可能出错.
 
@@ -496,14 +481,11 @@ def gen_sql(
 
 以下是 我 针对 你的最初的需求 进行 分析 所得到的 诊断:
                         """.strip()
-                        + "\n\n",
-                        "partial": True,
-                    },
-                ],
-            )
-            .choices[0]
-            .message.content
-        ).strip()
+                    + "\n\n",
+                    "partial": True,
+                },
+            ],
+        )
         err.add_note(response)
 
         raise
@@ -542,15 +524,8 @@ def polish(query: str) -> str:
     while "Understood." not in (
         # 获取 AI 的回答, 并立即加入到 消息历史 中去.
         response := msgs.__iadd__(
-            [
-                llm_client.chat.completions.create(
-                    model=llm_name,
-                    messages=msgs,
-                )
-                .choices[0]
-                .message
-            ]
-        )[-1].content
+            [{"role": "assistant", "content": qwen.get_response(messages=msgs)}]
+        )[-1]["content"]
     ):
         # AI 没能理解, 于是 AI 提问.
         print("\n\033[94mAI:\033[0m " + response + "\n")
@@ -575,8 +550,7 @@ def polish(query: str) -> str:
         }
     )
     polished_query: str = most_representative_of(
-        lambda: llm_client.chat.completions.create(
-            model=llm_name,
+        lambda: qwen.get_response(
             messages=[
                 *msgs,
                 {
@@ -585,10 +559,9 @@ def polish(query: str) -> str:
                     "partial": True,
                 },
             ],
-        )
-        .choices[0]
-        .message.content.strip()
-        .rstrip("”")  # 此时回答的格式是 `[“]...”`, 我们需要去掉.
+        ).rstrip(
+            "”"
+        )  # 此时回答的格式是 `[“]...”`, 我们需要去掉.
     )
 
     logger.info(f"\033[32m润色后的请求\033[0m {polished_query=!s}\n")

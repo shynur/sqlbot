@@ -27,7 +27,6 @@ SQL 格式化
 报错反馈
 裁剪上下文
 明确需求
-SQL 注入式攻击
 事务
 JSON
 partial mode

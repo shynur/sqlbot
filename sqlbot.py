@@ -1,7 +1,6 @@
 #! /bin/python3.12
 # -*- coding: utf-8-unix; -*-
 
-# 标准库
 import re
 import sqlite3
 import logging
@@ -15,11 +14,8 @@ from typing import (
     Any,
     Callable,
     Iterable,
-    Literal,
 )
 
-# 第三方库, 记得 python3 -m pip install.
-from httpx import get
 import openai
 import numpy
 import sklearn.feature_extraction.text
@@ -40,7 +36,7 @@ db = sqlite3.connect(
     # 我们会在多线程中访问数据库, 因此需要关闭检查线程是否相同的功能.
     check_same_thread=False,
 )
-db_lock = threading.Lock()  # 简单起见, 无论读写, 我们都默认加锁.
+db_lock = threading.Lock()  # 简单起见, 无论读写都默认加锁.
 db.row_factory = lambda cursor, row: {
     field: value
     for field, value in zip(
@@ -68,24 +64,45 @@ class LLM:
         self,
         *,
         messages: list[dict[str, str]],
-        response_format=None,
+        response_format=openai.NOT_GIVEN,
     ) -> str:
         return (
             self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
-                **{var: eval(var) for var in ["response_format"] if eval(var)},
+                response_format=response_format,
             )
             .choices[0]
             .message.content.strip()
         )
 
+    @staticmethod
+    def get_ai(role: str = "chatter", *, _locals: dict[str, "LLM"] = {}) -> "LLM":
+        """根据 ROLE 获取不同特长的 AI client.
 
-qwen: LLM = LLM(
-    model_name="qwen2.5-14b-instruct-1m",
-    API_KEY="TongYiQianWen_API_key",
-    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-)
+        我们将不同的 model 缓存到 _LOCALS 中, 以便多次使用.
+        """
+
+        if "qwen_chatter" not in _locals:
+            _locals["qwen_chatter"] = LLM(
+                model_name="qwen2.5-1.5b-instruct",
+                API_KEY="TongYiQianWen_API_key",
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            )
+        if "qwen_coder" not in _locals:
+            _locals["qwen_coder"] = LLM(
+                model_name="qwen2.5-coder-1.5b-instruct",
+                API_KEY="TongYiQianWen_API_key",
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            )
+
+        match role:
+            case "chatter":
+                return _locals["qwen_chatter"]
+            case "coder":
+                return _locals["qwen_coder"]
+            case _:
+                raise ValueError(f"Invalid role: {role}")
 
 
 # TODO: RAG 功能稍后集成.
@@ -288,7 +305,7 @@ def gen_context(user_query: str) -> str:
 
     def get_unrelated_tables() -> list[str]:
         """返回排好序的无关表名."""
-        response: str = qwen.get_response(
+        response: str = LLM.get_ai().get_response(
             messages=[
                 {
                     "role": "system",
@@ -397,7 +414,7 @@ def gen_sql(
     ]
     # 循环, 直到 AI 生成的 SQL 语句是合法的.
     for _ in range(num_tries):
-        response: str = qwen.get_response(
+        response: str = LLM.get_ai("coder").get_response(
             messages=[
                 *msgs,
                 {"role": "assistant", "content": "```sql\n", "partial": True},
@@ -425,7 +442,7 @@ def gen_sql(
             db.execute(sql)
     except sqlite3.OperationalError as err:
         for _ in range(num_tries):
-            response: str = qwen.get_response(
+            response: str = LLM.get_ai("coder").get_response(
                 messages=[
                     *msgs,
                     {
@@ -457,7 +474,7 @@ def gen_sql(
         # 在我们把报错信息反馈给 AI, 让他重试了 `NUM_TRIES` 次之后还是失败了...
 
         # 很有可能是用户原本的查询请求压根就不合理, 让我们看看 AI 怎么说.
-        reason: str = qwen.get_response(
+        reason: str = LLM.get_ai().get_response(
             messages=[
                 *msgs,
                 {
@@ -524,7 +541,12 @@ def polish(query: str) -> str:
     while "Understood." not in (
         # 获取 AI 的回答, 并立即加入到 消息历史 中去.
         response := msgs.__iadd__(
-            [{"role": "assistant", "content": qwen.get_response(messages=msgs)}]
+            [
+                {
+                    "role": "assistant",
+                    "content": LLM.get_ai("chatter").get_response(messages=msgs),
+                }
+            ]
         )[-1]["content"]
     ):
         # AI 没能理解, 于是 AI 提问.
@@ -550,7 +572,8 @@ def polish(query: str) -> str:
         }
     )
     polished_query: str = most_representative_of(
-        lambda: qwen.get_response(
+        lambda: LLM.get_ai("chatter")
+        .get_response(
             messages=[
                 *msgs,
                 {
@@ -559,9 +582,8 @@ def polish(query: str) -> str:
                     "partial": True,
                 },
             ],
-        ).rstrip(
-            "”"
-        )  # 此时回答的格式是 `[“]...”`, 我们需要去掉.
+        )
+        .rstrip("”")  # 此时回答的格式是 `[“]...”`, 我们需要去掉.
     )
 
     logger.info(f"\033[32m润色后的请求\033[0m {polished_query=!s}\n")
@@ -634,7 +656,7 @@ def print_res(res: Iterable[dict[str, Any]]) -> None:
     match height, width := len(res[0]):
         # 标量:
         case 1, 1:
-            print(f"结果: {res[0][0]}")
+            print(f"结果: {next(iter(res[0].values()))}")
         # 列表:
         case _, 1:
             field: str = next(iter(res[0]))

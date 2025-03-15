@@ -2,52 +2,52 @@
 
 ## 摘要
 
-Text2SQL（Text-to-SQL）旨在将自然语言查询自动转换为SQL语句，使用户能够用日常用语直接查询数据库。
-传统的Text2SQL运用包括基于模板/规则的方法和基于深度学习的方法，但在应对复杂数据库schema和多样化查询时表现有限。
-近年来，LLM的兴起为Text2SQL提供了新范式，LLM展现出强大的语言理解和生成能力。
-然而LLM并不是银弹，直接使用单一LLM会面临巨量的token消耗成本、难以避免的数据隐私风险、以及生成结果的不稳定性。
+Text2SQL（Text-to-SQL）旨在将自然语言查询转译到SQL语句，允许人们用日常用语访问数据库。
+传统的Text2SQL运用基于模板/规则的方法或深度学习，在应对模式复杂的数据库和多样化查询时表现有限。
+近几年LLM的兴起为Text2SQL提供了新范式，其强大的语言理解和生成能力在Text2SQL任务中表现出众。
+然而LLM不是银弹，直接调用单一LLM会面临巨量的token消耗成本、难以避免的数据隐私风险、以及生成结果的不稳定性。
 
-本文在此提出一种多智能体架构赋能的Text2SQL系统，通过设计多个分工明确的LLM协同工作，构建端到端的流水线：从用户意图澄清、知识检索、prompt生成、SQL生成、多答案校验、到结果反馈。
-我们的系统充分利用LLM在复杂推理和语言生成上的优势（注意，SQL自身的语法规则就是对标自然语言而设计出来的），并通过RAG和多智能体协作机制提高查询的准确性和稳定性。
-我们的优化策略包括：多智能体投票决策、异步并行处理、上下文缓存、Partial Mode 前缀引导、结构化输出约束、以及RDBMS事务机制保障数据安全。
+本文在此提出一种多智能体架构赋能的Text2SQL系统，设计多个分工明确的LLM协同工作，以构建端到端的流水线：从用户意图澄清、知识检索、prompt生成、SQL生成、多答案校验、到结果反馈。
+我们的系统充分利用LLM在复杂推理和语言生成上的优势（注意，SQL自身的语法规则就是对标自然语言而设计出来的），应用多智能体协作机制提高查询的准确性和稳定性。
+我们的优化策略包括：RAG知识检索，多智能体投票决策、异步并行处理、上下文缓存、会话剪枝、Partial Mode 前缀引导、结构化输出约束、以及RDBMS事务机制保障数据安全。
 
-实验结果表明，相较于传统方案，本系统在查询准确率、执行效率和结果稳定性方面均有明显提升。
-本文的贡献在于：（1）提出了一个融合多智能体LLM的新型Text2SQL架构；（2）探索了一系列提升系统准确性、效率、确定性、安全性的优化策略；（3）通过综合实验验证了多智能体协作在Text2SQL任务中的有效性，并分析其优势与局限，为后来的研究提供借鉴。
+实验结果表明，相较于传统方案，本系统在查询准确率、执行效率、结果稳定性方面均有显著提升。
+本文的贡献在于：
+1. 提出了一个融合多智能体LLM的新型Text2SQL架构；
+2. 探索了一系列提升系统准确性、效率、确定性、安全性的优化策略；
+3. 综合验证了多智能体协作在Text2SQL任务中的有效性，并分析了其优势与局限，为后来的研究提供参考。
 
 ## 绪论
 
 ### 研究背景与动机
 
-将自然语言转换为可执行的SQL查询一直是数据库领域和自然语言处理领域的重要课题。
-这些研究可以惠及非专业用户，他们有时希望以更直观的方式从数据库中获取信息，而不用学习复杂的SQL语法。
-Text2SQL技术充当自然语言与数据库之间的桥梁，如此用户即可用日常用语查询数据库，直接消除数据库的使用门槛。
+将自然语言转换为SQL语句始终是数据库领域和NLP领域的重要课题。
+这些研究可以惠及非专业用户，他们有时希望以更直观的方式从数据库中获取信息，而无须学习复杂的SQL语法。
+Text2SQL技术充当自然语言与数据库之间的桥梁，如此人们即可以日常用语查询数据库，大大降低数据库的使用门槛。
 
-传统上，Text2SQL系统多采用基于规则的方法，将用户问题映射到预定义的SQL模板上。
-它对简单场景是有效的，然而数据库schema时常很复杂，且自然语言的表述多变，这些场景下传统方法就捉襟见肘，难以扩展。
+传统上，Text2SQL多采用基于规则的方法，将用户问题映射至预定义的SQL模板。
+这对简单场景是有效的，但数据库的模式时常很复杂，且自然语言的表述多变，这些场景下传统方法就捉襟见肘，难以扩展。
 后来，深度学习方法兴起，采用“编码器-解码器”神经网络生成SQL。
-人们引入LSTM、Transformer等模型以更好地理解问题语义和数据库结构，其中Seq2SQL、SQLNet等模型取得了一定进展。
-不过这些模型往往需要大规模标注数据进行训练，泛化能力有限，对于跨领域的新数据库或复杂查询，性能差强人意。
+人们引入LSTM、Transformer等模型以更好地理解问题语义和数据库模式，其中Seq2SQL、SQLNet等模型确实取得了一定进展。
+不过训练这些模型往往需要大规模标注的数据集，因此泛化能力有限，对于跨领域的新数据库，性能差强人意。
 
 当下，大规模语言模型（LLM）如GPT-4、DeepSeek的出现给Text2SQL带来了新的契机。
-LLM在自然语言理解和生成上表现出前所未有的能力，甚至在零样本或小样本prompt下生成复杂的SQL查询。
-LLM驱动的Text2SQL能够更好地泛化到不同领域的新数据库，并利用强大的推理能力处理复杂查询。
-
-不过工程领域从来没有银弹，直接将LLM用于Text2SQL仍存在一些突出问题：
+LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM驱动的Text2SQL更好地泛化到不同领域的数据库，得益于其强大的推理能力，甚至在零样本或小样prompt下仍能生成复杂的SQL查询。
+不过工程领域从来没有银弹，直接将LLM用于Text2SQL仍存在一些突出的问题：
 
 1. **上下文长度和开销**：
 
-   复杂查询往往涉及大量的数据库元信息（表结构、字段等），LLM对长上下文的处理会导致token消耗巨大，推理速度变慢，成本升高。
+   复杂查询往往涉及大量的数据库元信息（表结构、字段等），致使LLM在处理此类长上下文时token消耗量巨大，推理速度变慢，成本升高。
 
 2. **隐私与安全**：
 
-   更智能的LLM只能是云端服务，若将本地数据库的数据或用户查询发送给第三方模型难逃数据泄露的风险。
-   对于敏感业务数据，只能寻求本地部署或其它隐私保护方案。
+   参数量庞大的LLM往往是云端服务，若将本地数据库的数据发送给第三方模型则难逃数据泄露的风险。
+   数据安全敏感型业务只能寻求本地部署或其它隐私保护方案。
 
 3. **生成稳定性**：
 
-   LLM生成的SQL未必可靠，生成结果可能出现语法错误或语义不符的情况，尤其是面对复杂查询。
-   单轮生成往往需要多次尝试和人工核对。
-   此问题预计无法根除，即使是人类也做不到完全正确。
+   LLM生成的SQL未必可靠，可能出现语法错误或语义不符的情况，尤其是复杂查询往往需要多次尝试和人工核对。
+   此问题预计无法根除，因为即使是人类也做不到完全正确。
 
 此外，LLM的生成具有随机性，不同次生成的SQL缺乏确定性，与数据库应用的严谨性相悖。
 
@@ -92,12 +92,12 @@ LLM驱动的Text2SQL能够更好地泛化到不同领域的新数据库，并利
 ### 论文结构
 
 本文组织如下：
-第 {} 章综述相关工作，包括传统Text2SQL方法、深度学习方法、基于LLM的方法的对比分析；
-第 {} 章介绍SQL、LLM、多智能体、注意力机制、RAG等基础概念；
-第 {} 章描述我们提出的多智能体Text2SQL系统架构与流水线；
-第 {} 章给出提高准确率、性能、确定性、安全性方面的优化策略；
-第 {} 章设计评估方法，报告结果，讨论系统的优势与不足；
-第 {} 章总结全文并展望未来工作。
+下一章综述相关工作，包括传统Text2SQL方法、深度学习方法、基于LLM的方法的对比分析；
+再下一章介绍SQL、LLM、多智能体、注意力机制、RAG等基础概念；
+再下一章描述我们提出的多智能体Text2SQL系统架构与流水线；
+再下一章给出提高准确率、性能、确定性、安全性方面的优化策略；
+再下一章设计评估方法，报告结果，讨论系统的优势与不足；
+最后一章总结全文并展望未来工作。
 
 ## 相关工作
 
@@ -422,7 +422,7 @@ Prompt-Generator 智能体接收用户查询的澄清版、数据库元信息、
 ### 提升性能：异步并行与缓存机制
 
 #### 异步 I/O 调用
-	
+
 由于在线LLM的响应时间通常较长（秒级），如果严格串行地执行多智能体生成、反馈等步骤，整体延迟会显著增加。
 为此，我们对耗时的LLM调用尽可能采取 **异步并行** 处理。
 
@@ -506,31 +506,3 @@ Partial Mode提高了输出的一致性和可解析性，为后续结果处理�
 当然，如果用户有更高的安全需求，完全可以使用私有部署的LLM模型，这仅需更换LLM智能体的后端。
 
 通过事务和权限等机制，我们尽最大努力确保系统在带来便捷的同时，不会因错误的SQL生成而破坏数据库完整性或造成数据泄漏。
-
-## 参考文献
-
-[1] **Zijin Hong**, Zheng Yuan, Qinggang Zhang, *et al.* “Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL.” *arXiv preprint arXiv:2406.08426*, 2024.
-
-[2] **Xiaohu Zhu**, Qian Li, Lizhen Cui, *et al.* “Large Language Model Enhanced Text-to-SQL Generation: A Survey.” *arXiv preprint arXiv:2410.06011*, 2024.
-
-[3] **Bing Wang**, Changyu Ren, *et al.* “MAC-SQL: A Multi-Agent Collaborative Framework for Text-to-SQL.” *arXiv preprint arXiv:2312.11242*, 2024.
-
-[4] **Chen Shen**, Jin Wang, *et al.* “Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models (MageSQL).” *CIKM (Demo)*, 2024.
-
-[5] **Ziyuan Wang**, Ruocheng Zhang, *et al.* “Tool-assisted Agent on SQL Inspection and Refinement in Real-world Scenarios.” *arXiv preprint arXiv:2408.16991*, 2024.
-
-[6] **Tao Yu**, Chien-Sheng Wu, *et al.* “Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task.” *EMNLP*, 2018.
-
-[7] **Victor Zhong**, *et al.* “Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017.
-
-[8] **Bailin Wang**, *et al.* “RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers.” *ACL*, 2020.
-
-[9] **Timo Scholak**, Nathan Schucher, Dzmitry Bahdanau. “PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models.” *EMNLP*, 2021.
-
-[10] **Xuezhi Wang**, Jason Wei, *et al.* “Self-Consistency Improves Chain of Thought Reasoning in Language Models.” *ICLR (Poster)*, 2023.
-
-[11] **Fei Li**, H. V. Jagadish. “Constructing an Interactive Natural Language Interface for Relational Databases.” *VLDB*, 2014.
-
-[12] **Dave Bergmann**, Cole Stryker. “What is an attention mechanism?” *IBM AI Blog*, 2024.
-
-[13] **AWS Cloud**. “What is RAG (Retrieval-Augmented Generation)?” *AWS AI Blog*, 2023.

@@ -1,4 +1,4 @@
-#! /bin/python3.12
+#! /bin/python3.13
 # -*- coding: utf-8-unix; -*-
 
 import re
@@ -46,6 +46,63 @@ db.row_factory = lambda cursor, row: {
 }
 
 
+class Prompt:
+    def __init__(self, query: str = ""):
+        self.query: str = query
+        self.background: list[str] = []
+        self.knowledge: list[str] = []
+
+    def __str__(self) -> str:
+        """返回一个可以直接提供给 LLM 的 prompt."""
+
+        self.knowledge = [
+            knowledge.strip() for knowledge in self.knowledge if knowledge.strip()
+        ]
+        self.background = [
+            background.strip() for background in self.background if background.strip()
+        ]
+
+        knowledge: str = (
+            (self.knowledge or "")
+            and f"""
+以下是一些前置知识:
+
+{
+    '\n\n'.join(
+        '\n'.join(
+            f'> {line}' for line in knowledge.splitlines()
+        ) for knowledge in self.knowledge
+    )
+}
+
+_______________________________________________________________________________
+        """.strip()
+        )
+
+        background: str = (
+            (self.background or "")
+            and f"""
+已知的背景信息:
+
+{
+    '\n\n'.join(
+        '\n'.join(
+            f'> {line}' for line in background.splitlines()
+        ) for background in self.background
+    )
+}
+        """.strip()
+        )
+
+        return f"""
+{knowledge}
+
+{background}
+
+{self.query}
+        """.strip()
+
+
 class LLM:
     def __init__(
         self,
@@ -63,9 +120,14 @@ class LLM:
     def get_response(
         self,
         *,
-        messages: list[dict[str, str]],
+        messages: Iterable[dict[str, Any]],
         response_format=openai.NOT_GIVEN,
     ) -> str:
+        """获取 AI 的回答.
+
+        不包含任何空白符.
+        """
+
         return (
             self.client.chat.completions.create(
                 model=self.model_name,
@@ -77,7 +139,11 @@ class LLM:
         )
 
     @staticmethod
-    def get_ai(role: str = "chatter", *, _locals: dict[str, "LLM"] = {}) -> "LLM":
+    def get_ai(
+        role: str = "chatter",
+        *,
+        _locals: dict[str, "LLM"] = {},
+    ) -> "LLM":
         """根据 ROLE 获取不同特长的 AI client.
 
         我们将不同的 model 缓存到 _LOCALS 中, 以便多次使用.
@@ -105,7 +171,6 @@ class LLM:
                 raise ValueError(f"Invalid role: {role}")
 
 
-# TODO: RAG 功能稍后集成.
 class RAG:
     # 检测 CUDA 是否可用, 并设置设备:
     torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -182,8 +247,12 @@ class RAG:
         norm: numpy.ndarray = numpy.linalg.norm(embedding_np, axis=1, keepdims=True)
         return embedding_np / norm
 
-    def retrieve_context(self, query: str, top_k: int) -> list[str]:
-        """给定用户查询, 检索 `top_k` 个最相关的文档片段."""
+    def retrieve_context(
+        self,
+        query: str,
+        top_k: int,
+    ) -> list[str]:
+        """给定用户查询, 检索 TOP_K 个最相关的文档片段."""
 
         query_embedding: numpy.ndarray = self.__class__.compute_embedding(
             query
@@ -198,6 +267,7 @@ class RAG:
 
 
 sql_doc_retriever: RAG = RAG("sql_doc.txt")
+sql_doc_retriever.SWITCH: bool = False  # TODO: RAG 功能稍后集成.
 
 
 def most_representative_of(
@@ -251,8 +321,8 @@ def get_db_info(
 
     返回的元组的第一项表示数据库中表的数量;
     第二项是描述, 有两种说法:
-      - “已知 目前 数据库里 没有表.”
-      - “已知 目前 数据库里 有这些表 (字段名按顺序包含在表名后的圆括号中): A (b), C (d, e).”
+      - “目前 数据库里 没有表.”
+      - “目前 数据库里 有这些表 (字段名按顺序包含在表名后的圆括号中): A (b), C (d, e).”
     """
 
     tables: list[str] = [
@@ -274,7 +344,7 @@ def get_db_info(
     )  # 形如 “A (b), C (d, e)”
 
     sentence: str = (
-        "已知 目前 数据库里 "
+        "目前 数据库里 "
         + (
             f"有这些表 (字段名按顺序包含在表名后的圆括号中): {info}"
             if info
@@ -287,7 +357,7 @@ def get_db_info(
     return len(tables), sentence
 
 
-def gen_context(user_query: str) -> str:
+def gen_background(user_query: str) -> str:
     """根据 `USER_QUERY`, 提取出数据库中 **相关** 的元数据.
 
     返回可以直接嵌入到 prompt 中的文本段, 作为背景信息.
@@ -296,11 +366,11 @@ def gen_context(user_query: str) -> str:
     num_tables, db_info = get_db_info()
 
     if num_tables == 0:
-        # 这种情况下, 直接返回 “已知 目前 数据库里 没有表.”.
+        # 这种情况下, 直接返回 “目前 数据库里 没有表.”.
         return db_info
 
     all_tables: list[str] = [
-        row["name"] for row in db.execute("SELECT name FROM sqlite_master;").fetchall()
+        row["name"] for row in db.execute("SELECT name FROM sqlite_master;")
     ]
 
     def get_unrelated_tables() -> list[str]:
@@ -339,6 +409,8 @@ def gen_context(user_query: str) -> str:
         unrelated_tables: list[str] = [
             table for table in all_tables if table not in related_tables
         ]
+
+        # 按字典序排序, 这样更可能出现相同的前缀.
         return sorted(unrelated_tables)
 
     unrelated_tables_candidates: list[tuple[str, list[str]]] = []
@@ -383,7 +455,7 @@ def sql_valid_p(sql: str) -> bool:
 
 
 def gen_sql(
-    prompt: str,
+    prompt: Prompt,
     num_tries: int = 3,
 ) -> str:
     """根据 `PROMPT`, 生成 SQL 语句.
@@ -410,7 +482,7 @@ def gen_sql(
 - 你只能 将 用户 的 请求 转译成 **一句** SQL 语句, 哪怕你认为应该用多句 SQL 语句.
                         """.strip(),
         },
-        {"role": "user", "content": prompt},
+        {"role": "user", "content": str(prompt)},
     ]
     # 循环, 直到 AI 生成的 SQL 语句是合法的.
     for _ in range(num_tries):
@@ -503,8 +575,8 @@ def gen_sql(
                 },
             ],
         )
-        err.add_note(response)
 
+        err.add_note(reason)
         raise
 
 
@@ -591,7 +663,7 @@ def polish(query: str) -> str:
 
 
 def get_sql(
-    prompt: str,
+    prompt: Prompt,
     num_tries: int = 7,
 ) -> str:
     """根据 `PROMPT`, 生成 SQL 语句.
@@ -609,9 +681,21 @@ def get_sql(
 
     def gen_sql_noexcept() -> None:
         try:
-            return sqls.append(gen_sql(prompt))
+            sql = gen_sql(prompt)
         except (sqlite3.OperationalError, sqlite3.ProgrammingError) as err:
-            return errors.append(err)
+            errors.append(err)
+            return
+
+        # 格式化 SQL 语句, 消除不同 LLM 生成的 SQL 语句的格式差异:
+        sql = sqlparse.format(
+            sql,
+            keyword_case="upper",
+            strip_comments=False,
+            indent_tabs=False,
+            indent_width=2,
+            compact=True,
+        ).strip()
+        sqls.append(sql)
 
     # 并发地获取多个来自 AI 的回答.
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_tries) as executor:
@@ -768,15 +852,18 @@ while True:
         )
 
         # 获取用户的初始请求.  (忽略任何空白输入.)
-        while (user_query := input("\033[95m你:\033[0m ")).strip() == "":
+        while (prompt := Prompt(input("\033[95m你:\033[0m ").strip())) == "":
             continue
         print()
 
         # 询问用户, 直到我们搞清楚他究竟想干啥.
-        user_query: str = polish(user_query)
+        prompt.query = polish(prompt.query)
 
         # 最终给到 AI 的查询请求.  这包含裁剪过的数据库元数据, 以及 AI 润色过的请求.
-        prompt: str = gen_context(user_query) + "\n\n" + user_query
+        prompt.background.append(gen_background(prompt.query))
+        # 使用 RAG 获取 SQL 相关的知识.
+        if sql_doc_retriever.SWITCH:
+            prompt.knowledge += sql_doc_retriever.retrieve_context(prompt.query, 3)
         logger.info(f"\033[32m正式提问\033[0m {prompt=!s}\n")
 
         try:
@@ -793,16 +880,7 @@ while True:
 """.strip()
             )
             continue
-        # 格式化 SQL 语句:
-        sql = sqlparse.format(
-            sql,
-            keyword_case="upper",
-            strip_comments=False,
-            indent_tabs=False,
-            indent_width=2,
-            compact=True,
-        ).strip()
-        logger.info(f"\033[32m格式化后的 SQL\033[0m {sql=!s}\n")
+
         # 高级用户可能想要自己输入 SQL 语句:
         if user_input_sql := input(
             f"""

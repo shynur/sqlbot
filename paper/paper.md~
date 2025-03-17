@@ -82,7 +82,7 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
 5. **综合评估**：
 
    我们有丰富的实验，从准确率、执行效率、稳定性等多方面评估系统，并与传统单智能体方案进行比较。
-   本系统在Spider[^1]等baseline数据集上的查询准确率远超单智能体LLM baseline，在真实业务数据库上成功应对了一系列模糊查询场景，多智能体方案的有效性从而得到验证。
+   本系统在Spider等baseline数据集上的查询准确率远超单智能体LLM baseline，在真实业务数据库上成功应对了一系列模糊查询场景，多智能体方案的有效性从而得到验证。
    我们还分析了当前系统的局限，指明未来的改进方向。
 
 ### 论文结构
@@ -103,16 +103,16 @@ Text2SQL研究领域经历了从基于模板到神经网络再到LLM驱动的演
 ### 基于模板和规则的方法
 
 早期Text2SQL系统极度依赖 **模板匹配** 和 **规则解析**。
-典型做法是预先定义一组自然语言问句到SQL模板的映射，程序根据用户查询的关键词或句法结构匹配特定的SQL模板，替换槽位以生成SQL。[^2]
+典型做法是预先定义一组自然语言问句到SQL模板的映射，程序根据用户查询的关键词或句法结构匹配特定的SQL模板，替换槽位以生成SQL。
 例如，IBM早期的系统可能预置规则：“T中哪些记录的F是V”对应SQL结构 `SELECT * FROM T WHERE F = V` 等。
 
 它的缺点很明显：
 - **可扩展性差**：难以覆盖丰富的自然语言表达；
-- **适应性弱**：无法处理未收录的语法或复杂查询。[^2]
+- **适应性弱**：无法处理未收录的语法或复杂查询。
 
 数据库模式和查询需求日益复杂，规则/模板方法逐渐力不从心。
-有研究者开始探索数据驱动的学习方法，这可以减少对人工规则的依赖。[^2]
-当年的研究中有些值得一提：交互式NLIDB（Natural Language Interface to Database）系统就尝试结合用户澄清提问来改进准确率，例如Li and Jagadish (2014) 提出了交互式自然语言数据库接口，意图借助用户的参与来消歧，提高查询正确率。[^1]
+有研究者开始探索数据驱动的学习方法，这可以减少对人工规则的依赖。
+当年的研究中有些值得一提：交互式NLIDB（Natural Language Interface to Database）系统就尝试结合用户澄清提问来改进准确率，例如Li and Jagadish (2014) 提出了交互式自然语言数据库接口，意图借助用户的参与来消歧，提高查询正确率。
 
 总之，模板和规则方法奠定了Text2SQL的初步基础，其虽有局限性但也推动了后续数据驱动方法的发展。
 
@@ -121,25 +121,25 @@ Text2SQL研究领域经历了从基于模板到神经网络再到LLM驱动的演
 #### 序列到序列模型
 
 引入神经网络使Text2SQL进入了数据驱动的新阶段。
-典型的是将Text2SQL视为机器翻译问题，采用 **Encoder-Decoder** 架构，编码器将自然语言问题编码为向量表示，解码器根据表示生成对应的SQL。[^2]
+典型的是将Text2SQL视为机器翻译问题，采用 **Encoder-Decoder** 架构，编码器将自然语言问题编码为向量表示，解码器根据表示生成对应的SQL。
 
-早期工作中，基于循环神经网络（RNN，尤其是LSTM）的模型取得了一定成功。[^2]
-例如，Seq2SQL模型通过强化学习优化生成的SQL[^2]；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成[^2]；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
+早期工作中，基于循环神经网络（RNN，尤其是LSTM）的模型取得了一定成功。
+例如，Seq2SQL模型通过强化学习优化生成的SQL；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
 这些LSTM序列模型捕捉了自然语言和SQL序列之间的依赖关系，在当时拥有超过传统模板方法的正确率。
 
-但LSTM模型仍有缺点，**长期依赖不足** 和 **跨域泛化弱** 使它们难以有效处理问题中的长距离依赖。[^2]
-而且这些模型通常需要在大规模标注的语料上进行训练，可以猜到对于新领域（未知数据库模式）往往表现不佳，事实也确实如此。[^2]
+但LSTM模型仍有缺点，**长期依赖不足** 和 **跨域泛化弱** 使它们难以有效处理问题中的长距离依赖。
+而且这些模型通常需要在大规模标注的语料上进行训练，可以猜到对于新领域（未知数据库模式）往往表现不佳，事实也确实如此。
 
 #### 基于Transformer和预训练的模型
 
-Transformer通过 **自注意力机制** 能够更有效地捕捉长程依赖和复杂结构关系。[^2]
+Transformer通过 **自注意力机制** 能够更有效地捕捉长程依赖和复杂结构关系。
 
 如基于Transformer的SQLova、GPSQL等模型在Spider等baseline上拥有领先性能。
-GraPPa通过在大规模表语料上预训练增强模型对数据库模式的表示能力[^2]；RAT-SQL利用关系自注意力网络结合数据库模式信息，实现了对模式的有效编码，被认为是Spider Challenge中的标杆模型之一。
-IRNet等方法融合了语义解析和抽象语法树的思想，提高所生成的SQL的句法正确率。[^2]
+GraPPa通过在大规模表语料上预训练增强模型对数据库模式的表示能力；RAT-SQL利用关系自注意力网络结合数据库模式信息，实现了对模式的有效编码，被认为是Spider Challenge中的标杆模型之一。
+IRNet等方法融合了语义解析和抽象语法树的思想，提高所生成的SQL的句法正确率。
 
 预训练模型（PLM）也是这一阶段的重要趋势。
-研究者将BERT、RoBERTa等作为编码器用于Text2SQL，或将T5等Seq2Seq模型在Text2SQL数据上微调，以利用大规模语料中学习到的语言知识。[^1]
+研究者将BERT、RoBERTa等作为编码器用于Text2SQL，或将T5等Seq2Seq模型在Text2SQL数据上微调，以利用大规模语料中学习到的语言知识。
 这些预训练模型显著提升了跨领域场景下的性能，缩小与人工编写SQL之间的差距。
 但深度学习模型普遍缺乏对错误的纠正能力，往往“一次生成定成败”，缺少交互式改正的机制。
 
@@ -148,18 +148,18 @@ IRNet等方法融合了语义解析和抽象语法树的思想，提高所生成
 #### Prompt 学习与 Few-Shot
 
 大语言模型（如GPT-3系列）的出现，为Text2SQL提供了新的范式，即 **基于prompt的零样本/小样本学习**。
-只需精心设计prompt，提供一些示例，LLM就能理解任务要求并生成相应的SQL。[^2]
+只需精心设计prompt，提供一些示例，LLM就能理解任务要求并生成相应的SQL。
 LLM丰富的通用知识和强大的语言生成能力使其能够跨领域泛化，处理见所未见的数据库模式，这解决了传统模型对训练数据的依赖。
 
-有研究者探索了各种 **Prompt Engineering** 技巧，如链式思维提示（Chain-of-Thought）引导LLM逐步推理复杂查询，将问题分解为子问题并逐一求解，再合成最终SQL。[^3]
-Wang et al. (2022) 提出的 **自一致性（Self-Consistency）** 解码策略进一步提升了链式推理的可靠性。[^10]
-具体做法是让LLM对同一问题采样生成多个推理路径/SQL答案，然后通过投票选择最一致的结果。[^10]
+有研究者探索了各种 **Prompt Engineering** 技巧，如链式思维提示（Chain-of-Thought）引导LLM逐步推理复杂查询，将问题分解为子问题并逐一求解，再合成最终SQL。
+Wang et al. (2022) 提出的 **自一致性（Self-Consistency）** 解码策略进一步提升了链式推理的可靠性。
+具体做法是让LLM对同一问题采样生成多个推理路径/SQL答案，然后通过投票选择最一致的结果。
 
 #### 微调专用LLM
 
 一些工作尝试对开源LLM进行专门的Text2SQL微调，以在保留LLM强大能力的同时，注入领域知识和术语。
 例如，Bolin Ding等研究了针对Text2SQL任务的prompt组合与优化。
-又如，SQL-LLaMA是基于7B参数的Code Llama进行指令微调得到的模型，在Text2SQL上达到了与GPT-4类似的表现。[^3]
+又如，SQL-LLaMA是基于7B参数的Code Llama进行指令微调得到的模型，在Text2SQL上达到了与GPT-4类似的表现。
 
 微调的好处在于模型可以学到更贴合数据库查询的风格和约束，从而减少语法错误和不相关输出。
 但微调需要大规模高质量的训练数据。
@@ -167,7 +167,7 @@ Wang et al. (2022) 提出的 **自一致性（Self-Consistency）** 解码策略
 
 ### 本章总结
 
-LLM的引入改变了Text2SQL的研究格局，最新的方法倾向于将LLM作为智能agent并辅以协作机制以提升系统的智能性和健壮性。[^2]
+LLM的引入改变了Text2SQL的研究格局，最新的方法倾向于将LLM作为智能agent并辅以协作机制以提升系统的智能性和健壮性。
 本文的工作沿袭这一思路，设计一个多智能体LLM架构的Text2SQL系统，并在其中融入RAG、错误反馈等机制，旨在进一步提高复杂场景下SQL生成的准确率、效率、安全性。
 
 ## 基础概念
@@ -191,11 +191,11 @@ Text2SQL关注如何将自然语言转换为SQL，其中 `SELECT` 最常见，�
 
 ### 注意力机制
 
-**注意力机制（Attention Mechanism）** 最初由Bahdanau等人在2014年提出，以改进机器翻译中RNN“编码器-解码器”对长序列的处理。[^12]
-注意力机制的核心思想是在生成每个词时，让模型自动 **聚焦于输入序列中最相关的部分**，而不是依赖固定长度的隐藏状态向量。[^12]
-通过计算 **注意力权重**，模型可以评估输入序列各位置对于当前输出的重要性，据此加权汇总输入信息。[^12]
+**注意力机制（Attention Mechanism）** 最初由Bahdanau等人在2014年提出，以改进机器翻译中RNN“编码器-解码器”对长序列的处理。
+注意力机制的核心思想是在生成每个词时，让模型自动 **聚焦于输入序列中最相关的部分**，而不是依赖固定长度的隐藏状态向量。
+通过计算 **注意力权重**，模型可以评估输入序列各位置对于当前输出的重要性，据此加权汇总输入信息。
 这个过程模拟了人类注意力的选择性：面对冗长的信息，人类会选择性地关注与当前任务相关的要点。
-注意力机制解决了传统编码器将整个输入压缩成单一向量的不充分问题，使得长句子的关键信息不至于淹没在整体表示中。[^12]
+注意力机制解决了传统编码器将整个输入压缩成单一向量的不充分问题，使得长句子的关键信息不至于淹没在整体表示中。
 
 现代的大语言模型（LLM）基本都是基于Transformer架构，靠多层自注意力建模语言。
 注意力机制赋予了LLM强大的并行建模长文本的能力，使其能够理解复杂的查询语句和数据库模式之间的匹配关系，这也是LLM相比早期模型在Text2SQL任务上效果突出的原因之一。
@@ -203,28 +203,28 @@ Text2SQL关注如何将自然语言转换为SQL，其中 `SELECT` 最常见，�
 ### 大语言模型（LLM）
 
 **大语言模型** 指参数规模巨大的深度神经网络模型，通常基于Transformer架构，在海量文本语料上自监督预训练，对自然语言进行深度的理解和生成。
-LLM的 **Few-Shot Learning** 能力极为强大：即使不专门针对某任务训练，通过prompt提供少量示例，LLM也能在新任务上产生相当好的结果。[^1]
-对于Text2SQL任务，LLM能够“理解”自然语言问题并结合给定的数据库schema直接生成SQL查询。[^1]
+LLM的 **Few-Shot Learning** 能力极为强大：即使不专门针对某任务训练，通过prompt提供少量示例，LLM也能在新任务上产生相当好的结果。
+对于Text2SQL任务，LLM能够“理解”自然语言问题并结合给定的数据库schema直接生成SQL查询。
 LLM还掌握了丰富的语言模式和一定的逻辑推理能力，因而表现出更强的泛化性。
 这种能力在复杂、多样化的数据库环境下尤为宝贵。
 
-纵使LLM存储了海量知识，它的训练数据是静态的且覆盖有限，因此LLM对特定领域中实时更新的信息可能欠缺了解。[^13]
+纵使LLM存储了海量知识，它的训练数据是静态的且覆盖有限，因此LLM对特定领域中实时更新的信息可能欠缺了解。
 尤其在数据库查询场景中，LLM本身并不“知道”用户数据库的具体内容，因此需要设法将数据库schema等上下文提供给它。
-LLM还存在 **幻觉（Hallucination）**，偶尔会编造看似合理但实则错误的答案。[^13]
+LLM还存在 **幻觉（Hallucination）**，偶尔会编造看似合理但实则错误的答案。
 我们的系统结合RAG等手段，努力让LLM“知有所依”，在生成SQL时参考真实数据库文档或示例，减少无根据的胡乱猜测。
 
 **成本** 是另一个无法忽视的难题：LLM的推理往往需要消耗数百至上千tokens，且耗时极久。
-在复杂对话中多轮交互时，调用开销不容乐观。[^1]
+在复杂对话中多轮交互时，调用开销不容乐观。
 本系统通过优化对话流程和并行机制尽量抬高容错率以使廉价LLM（意味着更易出错）成为可能，并减少生成耗时。
 
 如何用好这样强大的模型，同时弥补其短板，是本文研究的出发点。
 
 ### 检索增强生成（RAG）
 
-**检索增强生成（Retrieval-Augmented Generation, RAG）** 是一种将生成式模型与外部知识库相结合的技术。[^13]
+**检索增强生成（Retrieval-Augmented Generation, RAG）** 是一种将生成式模型与外部知识库相结合的技术。
 RAG通常包含两部分：检索器和生成器。
 检索器根据用户问题从知识库（可以是文档集合、数据库、已知问答对等）中找到若干条相关内容；然后将这些外部知识与原问题一起送入生成模型，综合生成最终回答。
-RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利用外部最新、权威的数据来提高准确性。[^13]
+RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利用外部最新、权威的数据来提高准确性。
 
 对于Text2SQL来说，RAG可以体现在：在生成SQL之前，先从SQL文档库或示例库中检索与当前查询相关的语法示例或业务知识，作为prompt的一部分提供给LLM，以帮助其更准确地构造SQL。
 当LLM有了这些额外prompt后，往往能减少语法错误或业务误解。
@@ -253,7 +253,7 @@ RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利
 系统首先连接目标数据库，读取数据库的 **元数据**，包括所有表名、各表的列名、表与表之间的外键关系等。
 这一步由数据库接口模块完成，为后续SQL的生成提供必需的上下文。
 
-完整的schema信息对于正确地生成SQL至关重要。[^1]
+完整的schema信息对于正确地生成SQL至关重要。
 然而在关系复杂型数据库中，schema信息可能非常庞大，因此系统在获取后会暂存此元信息，以待过滤和后续使用。
 
 #### 需求沟通智能体
@@ -270,7 +270,7 @@ RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利
 
 具体而言，系统将用户最终明确的问题作为查询，搜索预先构建的 **SQL知识库**。
 该知识库可以包括：Text2SQL常见问答对、SQL语法和函数说明文档、历史查询及对应SQL范例等。
-通过语义向量搜索，取出与当前问题语义相似的若干条文档或示例。[^13]
+通过语义向量搜索，取出与当前问题语义相似的若干条文档或示例。
 这些检索到的内容被视为辅助知识，将被插入到prompt中提供给LLM，帮助它更好地理解问题、生成SQL。
 
 RAG检索的作用相当关键，尤其当用户问题涉及复杂业务逻辑时，相关知识的prompt可以显著提高准确率。
@@ -280,7 +280,7 @@ RAG检索的作用相当关键，尤其当用户问题涉及复杂业务逻辑�
 Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、检索到的知识，生成一个 **最终prompt**，用于引导后续的SQL-Generator智能体。
 
 该智能体首先会根据用户的查询需求，对数据库schema进行 **裁剪**：
-从整个数据库中挑选出与最终response可能相关的表，只保留这些相关schema的信息纳入prompt的上下文。[^3]
+从整个数据库中挑选出与最终response可能相关的表，只保留这些相关schema的信息纳入prompt的上下文。
 例如，用户问的是关于“学生成绩”的问题，则数据库中与学生或成绩无关的表信息就不提供给模型，以减少干扰和token负担。
 
 接着，将筛选后的schema描述与RAG检索得到的知识片段、用户的自然语言查询一起组织成prompt。
@@ -295,7 +295,7 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 我们同时部署了 $n$ 个功能类似的LLM实例（可以是相同模型的不同调用，也可以是不同的模型组合），每个智能体接收相同的prompt后独立生成一条SQL语句作为回答。
 
 通过多生成，我们期望获得多个候选SQL方案。
-之所以采用多智能体并行架构，是考虑到LLM的生成具有随机性，通过“集思广益”获取多个答案，可以提高找到正确SQL的概率。[^10]
+之所以采用多智能体并行架构，是考虑到LLM的生成具有随机性，通过“集思广益”获取多个答案，可以提高找到正确SQL的概率。
 此外，出于降本增效的目的，系统允许使用小规模LLM的免费API，更低规模的参数量往往意味着更高的出错率，而我们有望通过多智能体、多生成来实现“量变到质变”的跃迁，以提高容错率。
 
 生成完成后，系统汇集所有候选SQL进入下一步校验。
@@ -324,7 +324,7 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 
 具体做法是，构造一条新的对话消息告诉相应LLM：“你生成的SQL出现了如下错误：…，请据此修改。”
 然后让该智能体进行新一轮SQL生成。
-这个机制类似于编程语言编译器的错误提示，指导模型逐步修正答案。[^2]
+这个机制类似于编程语言编译器的错误提示，指导模型逐步修正答案。
 为避免死循环，我们限定每个智能体最多只能反馈修改若干次。
 经过反馈调整后，如果仍未通过，我们将放弃该智能体的SQL，保留最后一次SQL试运行中抛出的错误日志。
 
@@ -355,12 +355,12 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 
   如果一半以上的智能体成功生成了合法SQL，我们有理由相信用户的需求是可行的，且已经有若干正确候选。
   此时系统需要从通过校验的 $p$ 条SQL中选择一个“最佳”作为最终结果。
-  直接随机选择可能不稳健，我们采用 **语义相似度比较和投票** 的方法。[^10]
+  直接随机选择可能不稳健，我们采用 **语义相似度比较和投票** 的方法。
   具体而言，我们计算每对通过SQL之间的相似度（基于SQL字符串或其解析的抽象语法树），然后选出一条与其它SQL“语义距离”最近的SQL。
   直观理解，就是选择那条得到多数智能体“共识”的查询。
   例如，如果有3条SQL通过，其中两条基本相同，仅有细微差异，那么它们的平均距离较小，我们会选取这两条中的代表作为最终结果。
   这样的策略利用了集体智慧，避免选择某个偏离其它的异类结果。
-  此外，在多智能体使用不同模型的情况下，此方法相当于一种简单的投票融合，能够提高正确选中的概率。[^10]
+  此外，在多智能体使用不同模型的情况下，此方法相当于一种简单的投票融合，能够提高正确选中的概率。
 
 #### 执行与结果反馈
 
@@ -393,7 +393,7 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 
 ### 提高准确率：多智能体投票与相似度融合
 
-我们利用 **多智能体投票决策** 和 **响应相似度比较** 的策略提升生成response的准确率。[^10]
+我们利用 **多智能体投票决策** 和 **响应相似度比较** 的策略提升生成response的准确率。
 如前文所述，系统会并行调用多个LLM智能体生成候选response。
 
 直观上，如果多个模型独立生成了相似的response，那么这条response是正确的概率更高。
@@ -402,10 +402,10 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 然后通过 **余弦相似度** 算法计算这些responses的两两相似度，衡量它们在语义上的相近程度。
 我们选择平均语义距离最小的那一条response作为最终结果，即所谓最接近“集体共识”的答案。
 
-这一思路类似于Self-Consistency方法在推理任务中的应用：通过集成多个推理路径得到更可靠的结论。[^10]
+这一思路类似于Self-Consistency方法在推理任务中的应用：通过集成多个推理路径得到更可靠的结论。
 此外，对于结构化的SQL字符串，我们也可以通过将SQL解析为抽象语法树（AST）再比对其树型结构相似度，以减少表面差异（如别名、格式差异）带来的干扰。
 
-实验表明，多智能体融合策略相比单一模型输出能有效减少错误率，特别是在复杂查询和有歧义的问题上，投票机制往往可以避免模型“一意孤行”走入歧途。[^10]
+实验表明，多智能体融合策略相比单一模型输出能有效减少错误率，特别是在复杂查询和有歧义的问题上，投票机制往往可以避免模型“一意孤行”走入歧途。
 但很显然，该策略要求调用多个LLM，会带来很大的token开销与时间成本。
 我们将在下文的性能优化部分讨论如何折中处理。
 
@@ -495,6 +495,34 @@ Partial Mode提高了输出的一致性，为后续结果的处理带来方便�
 系统还有严格的 **权限控制**，云端LLM智能体无法接触到数据库存储的具体记录，它只能获知表的结构特征和数据库的关系网络。
 对于更新类操作，我们要求用户二次确认，修改前后涉及到的记录变更详情会以 Web 界面的形式呈现。
 尽管这些措施略微增加了复杂性，但在企业环境下是必要的。
-当然，如果用户有更高的安全需求，完全可以使用私有部署的LLM模型，这仅需更换LLM智能体的后端。[^1]
+当然，如果用户有更高的安全需求，完全可以使用私有部署的LLM模型，这仅需更换LLM智能体的后端。
 
 通过事务和权限等机制，我们尽最大努力确保系统在带来便捷性的同时，不会因执行错误生成的SQL而破坏数据库完整性或造成数据泄漏。
+
+## 参考文献
+
+[1] **Zijin Hong**, Zheng Yuan, Qinggang Zhang, *et al.* “Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL.” *arXiv preprint arXiv:2406.08426*, 2024 ([Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL](https://arxiv.org/html/2406.08426v1#:~:text=Generating%20accurate%20SQL%20according%20to,based%20systems.%20Most%20recently%2C%20large)) ([Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL](https://arxiv.org/html/2406.08426v1#:~:text=work%20using%20proprietary%20models%20for,the%20development%20of%20deep%20learning)).
+
+[2] **Xiaohu Zhu**, Qian Li, Lizhen Cui, *et al.* “Large Language Model Enhanced Text-to-SQL Generation: A Survey.” *arXiv preprint arXiv:2410.06011*, 2024 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=Intelligent%20agent,several%20LLM%20Agent%20systems%20that)) ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=MAC,Llama%20development)).
+
+[3] **Bing Wang**, Changyu Ren, *et al.* “MAC-SQL: A Multi-Agent Collaborative Framework for Text-to-SQL.” *arXiv preprint arXiv:2312.11242*, 2024 ([](https://openreview.net/pdf/8b69d4b61849bf673ce148826907e4d5d44bcee2.pdf#:~:text=Figure%202%3A%20The%20overview%20of,then%20refines%20faulty%20SQL%20queries)) ([[2312.11242] MAC-SQL: A Multi-Agent Collaborative Framework for Text-to-SQL](https://arxiv.org/abs/2312.11242#:~:text=achieves%20a%20comparable%20execution%20accuracy,22%20this)).
+
+[4] **Chen Shen**, Jin Wang, *et al.* “Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models (MageSQL).” *CIKM (Demo)*, 2024 ([Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models - Megagon Labs](https://megagon.ai/publications/demonstration-of-a-multi-agent-framework-for-text-to-sql-applications-with-large-language-models/#:~:text=The%20Text,modify%20the%20agents%20with%20different)).
+
+[5] **Ziyuan Wang**, Ruocheng Zhang, *et al.* “Tool-assisted Agent on SQL Inspection and Refinement in Real-world Scenarios.” *arXiv preprint arXiv:2408.16991*, 2024 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=Tool,corresponding%20cells%20in%20the%20database)).
+
+[6] **Tao Yu**, Chien-Sheng Wu, *et al.* “Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task.” *EMNLP*, 2018 ([Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL](https://arxiv.org/html/2406.08426v1#:~:text=Image%3A%20Refer%20to%20caption%20Figure,to%20answer%20the%20user%20question)).
+
+[7] **Victor Zhong**, *et al.* “Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=,to%20yield%20abstract%20syntax%20trees)).
+
+[8] **Bailin Wang**, *et al.* “RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers.” *ACL*, 2020 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=language%20questions%20and%20database%20tables,to%20yield%20abstract%20syntax%20trees)).
+
+[9] **Timo Scholak**, Nathan Schucher, Dzmitry Bahdanau. “PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models.” *EMNLP*, 2021 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=linking%2C%20columns%2C%20and%20data%20values,task)).
+
+[10] **Xuezhi Wang**, Jason Wei, *et al.* “Self-Consistency Improves Chain of Thought Reasoning in Language Models.” *ICLR (Poster)*, 2023 ([Self-Consistency Improves Chain of Thought Reasoning in Language Models | OpenReview](https://openreview.net/forum?id=1PL1NIMMrw#:~:text=paper%2C%20we%20propose%20a%20new,and%20commonsense%20reasoning%20benchmarks%2C%20including)).
+
+[11] **Fei Li**, H. V. Jagadish. “Constructing an Interactive Natural Language Interface for Relational Databases.” *VLDB*, 2014 ([Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL](https://arxiv.org/html/2406.08426v1#:~:text=,Radev)).
+
+[12] **Dave Bergmann**, Cole Stryker. “What is an attention mechanism?” *IBM AI Blog*, 2024 ([What is an attention mechanism? | IBM](https://www.ibm.com/think/topics/attention-mechanism#:~:text=An%20attention%20mechanism%20is%20a,power%20popular%20applications%20like%20ChatGPT)) ([What is an attention mechanism? | IBM](https://www.ibm.com/think/topics/attention-mechanism#:~:text=Attention%20mechanisms%20were%20originally%20introduced,captioning%20and%20visual%20question%20answering)).
+
+[13] **AWS Cloud**. “What is RAG (Retrieval-Augmented Generation)?” *AWS AI Blog*, 2023 ([What is RAG? - Retrieval-Augmented Generation AI Explained - AWS](https://aws.amazon.com/what-is/retrieval-augmented-generation/#:~:text=Retrieval,relevant%2C%20accurate%2C%20and%20useful%20in)) ([What is RAG? - Retrieval-Augmented Generation AI Explained - AWS](https://aws.amazon.com/what-is/retrieval-augmented-generation/#:~:text=cross,on%20the%20knowledge%20it%20has)).

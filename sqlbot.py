@@ -357,7 +357,7 @@ def get_db_info(
     return len(tables), sentence
 
 
-def gen_background(user_query: str) -> str:
+def get_background(user_query: str) -> str:
     """根据 `USER_QUERY`, 提取出数据库中 **相关** 的元数据.
 
     返回可以直接嵌入到 prompt 中的文本段, 作为背景信息.
@@ -385,8 +385,13 @@ def gen_background(user_query: str) -> str:
 
 你的任务是:
 分析用户的输入,
-用 JSON Array 的形式 (必须形如 `["table_name_1", "table_name_2", ...]`),
-列出你认为与用户的请求 *可能有关* 的 table 的名字 (哪怕是半毛钱关系).
+用 JSON Array, 必须形如:
+
+```json
+["table_name_1", "table_name_2", ...]
+```
+
+这样的格式, 列出你认为与用户的请求 *可能有关* 的 table 的名字 (哪怕是半毛钱关系).
 
 注意: 用户 使用 *自然语言* 发起 数据库 查询请求.
                     """.strip(),
@@ -399,8 +404,14 @@ def gen_background(user_query: str) -> str:
         # 通义千问's bug:
         if response.startswith("```"):
             response = "\n".join(response.splitlines()[1:]).split("```")[1]
+        logger.info(f"\033[32m相关表\033[0m {response=!r}")
 
-        related_tables: list[str] = json.loads(response)
+        match (related_tables := json.loads(response)).__class__.__name__:
+            case "list":
+                pass
+            case "dict" if "tables" in related_tables:
+                related_tables = related_tables["tables"]
+        logger.info(f"\033[32m相关表\033[0m {related_tables=!s}")
         # AI 可能不小心把字段名也包含进去了, 我们手动一个一个删掉:
         for i, table in enumerate(related_tables):
             related_tables[i] = table.strip().split()[0]
@@ -479,7 +490,7 @@ def gen_sql(
 
 注意:
 - 如果是 `CREATE TABLE` 语句, 你 **绝不应该** 书写 字段的数据类型, 因为 SQLite 支持 flexible typing.
-- 你只能 将 用户 的 请求 转译成 **一句** SQL 语句, 哪怕你认为应该用多句 SQL 语句.
+- 你只能 将 用户 的 请求 转译成 **一句** SQL 语句, 哪怕你认为应该用多条 SQL 语句.
                         """.strip(),
         },
         {"role": "user", "content": str(prompt)},
@@ -512,7 +523,9 @@ def gen_sql(
         # 我们用最后一次出错的 SQL 语句再次运行, 一边查看究竟是什么错误.
         with db:
             db.execute(sql)
-    except sqlite3.OperationalError as err:
+    except (sqlite3.OperationalError, sqlite3.ProgrammingError) as err:
+        logger.error(f"\033[31mSQL 错误\033[0m {err=!s}")
+
         for _ in range(num_tries):
             response: str = LLM.get_ai("coder").get_response(
                 messages=[
@@ -525,6 +538,10 @@ def gen_sql(
 {"\n".join(f"> {line}" for line in str(err).splitlines())}
 
 请重新生成 SQL 语句.
+
+注意, 新生成的 SQL *必须满足我最初的需求*:
+
+{'\n'.join(f'> {line}' for line in prompt.query.splitlines())}
                         """.strip(),
                     },
                     {
@@ -593,11 +610,13 @@ def polish(query: str) -> str:
 你是一位 SQLite3 数据库管理人员.
 {get_db_info()}
 
-用户会用自然语言请求查询数据库.
-但你从不正面回应用户查询数据库的请求, 你的任务只是搞清楚用户的需求是什么.
+用户会用自然语言请求查询 SQLite3 数据库.
+但你从不正面回应用户查询数据库的请求,
+你的任务只是搞清楚用户的需求是什么, 偶尔给他提供一些数据库的背景信息.
 
-在你确认你能够理解用户的请求时, 回答 “Understood.” 这句话, 不能多也不能少;
-否则, 就你不理解的地方, 继续询问用户.
+在你无法理解用户的究竟想干什么、或认为该请求在查询数据库的语境下不成立时,
+就你不理解的地方, 继续询问用户;
+否则, 回答 “Understood.” 这句话, 不能多也不能少.
 
 注意:
 我们使用的 SQLite 支持 flexible typing 特性, 因此绝不需要指定数据类型.
@@ -610,17 +629,17 @@ def polish(query: str) -> str:
     ]
 
     # 一直询问直到 AI 说自己已经理解了.
-    while "Understood." not in (
+    while True:
         # 获取 AI 的回答, 并立即加入到 消息历史 中去.
-        response := msgs.__iadd__(
-            [
-                {
-                    "role": "assistant",
-                    "content": LLM.get_ai("chatter").get_response(messages=msgs),
-                }
-            ]
-        )[-1]["content"]
-    ):
+        # 如果连续五次都 understood, 则确实理解了.
+        for _ in range(3):
+            response = LLM.get_ai("chatter").get_response(messages=msgs)
+            if "Understood." not in response:
+                break
+        else:
+            break
+        msgs.append({"role": "assistant", "content": response})
+
         # AI 没能理解, 于是 AI 提问.
         print("\n\033[94mAI:\033[0m " + response + "\n")
 
@@ -631,6 +650,7 @@ def polish(query: str) -> str:
 
         msgs.append({"role": "user", "content": user_input})
 
+    logger.info(f"\033[32mAI 对用户需求的评价\033[0m {msgs[-1]['content']=!s}\n")
     # AI 总算是理解了用户的请求, 接下来我们让 AI 假装成用户, 并返回他的请求.
     msgs.append(
         {
@@ -744,7 +764,7 @@ def print_res(res: Iterable[dict[str, Any]]) -> None:
         # 列表:
         case _, 1:
             field: str = next(iter(res[0]))
-            print({field: [row[field] for row in res]})
+            print(str({field: [row[field] for row in res]})[1:-1])
         # 二维表格:
         case _, _:
             fields: tuple[str, ...] = tuple(res[0])
@@ -762,21 +782,23 @@ def print_res(res: Iterable[dict[str, Any]]) -> None:
                             values=list(fields),
                             fill_color="paleturquoise",
                             align="center",
-                            font=dict(color="black", size=16),
+                            font=dict(color="black", size=24),
+                            height=38,
                         ),
                         cells=dict(
                             values=columns,
                             fill_color="lavender",
                             align="center",
-                            font=dict(color="black", size=14),
+                            font=dict(color="black", size=24),
+                            height=38,
                         ),
                     )
                 ]
             )
             # 优化布局:
             figure.update_layout(
-                title="Data Table",
-                margin=dict(l=20, r=20, t=40, b=20),
+                title="查询结果",
+                margin=dict(l=20, r=20, t=40, b=40),
             )
             # 显示图表:
             figure.show()
@@ -809,7 +831,7 @@ def print_updated_then_confirm(
     # 新表格的数据:
     new_rows: list[tuple] = sorted(tuple(row.values()) for row in new_records)
     # 上下拼接:
-    rows: list[tuple] = old_rows + [tuple("更新后" for _ in fields)] + new_rows
+    rows: list[tuple] = old_rows + [tuple("* 更新后 *" for _ in fields)] + new_rows
 
     # TODO: `更新后` 这一行的颜色要改变.
 
@@ -823,21 +845,23 @@ def print_updated_then_confirm(
                     values=list(fields),
                     fill_color="paleturquoise",
                     align="center",
-                    font=dict(color="black", size=16),
+                    font=dict(color="black", size=24),
+                    height=38,
                 ),
                 cells=dict(
                     values=columns,
                     fill_color="lavender",
                     align="center",
-                    font=dict(color="black", size=14),
+                    font=dict(color="black", size=24),
+                    height=38,
                 ),
             )
         ]
     )
     # 优化布局:
     figure.update_layout(
-        title="Data Table",
-        margin=dict(l=20, r=20, t=40, b=20),
+        title="更新前后对照",
+        margin=dict(l=20, r=20, t=40, b=40),
     )
     # 显示图表:
     figure.show()
@@ -845,7 +869,7 @@ def print_updated_then_confirm(
     return "y" == input("确定要更新吗?  (Y/N): ").lower()
 
 
-while True:
+def main():
     try:
         print(
             "\n********************************** 新一轮会话 **********************************"
@@ -860,7 +884,7 @@ while True:
         prompt.query = polish(prompt.query)
 
         # 最终给到 AI 的查询请求.  这包含裁剪过的数据库元数据, 以及 AI 润色过的请求.
-        prompt.background.append(gen_background(prompt.query))
+        prompt.background.append(get_background(prompt.query))
         # 使用 RAG 获取 SQL 相关的知识.
         if sql_doc_retriever.SWITCH:
             prompt.knowledge += sql_doc_retriever.retrieve_context(prompt.query, 3)
@@ -879,7 +903,7 @@ while True:
 您需要重新提出请求.
 """.strip()
             )
-            continue
+            return
 
         # 高级用户可能想要自己输入 SQL 语句:
         if user_input_sql := input(
@@ -895,6 +919,14 @@ while True:
         ).strip():
             while not sqlite3.complete_statement(user_input_sql):
                 user_input_sql += "\n" + input(": ")
+            else:
+                try:
+                    db.execute(user_input_sql)
+                except sqlite3.Error as err:
+                    print(err)
+                    return
+                finally:
+                    db.rollback()
             sql = user_input_sql
         print()
 
@@ -926,7 +958,7 @@ while True:
                     .lower()
                 ):
                     print("已取消.")
-                    continue
+                    return
                 else:
                     with db:
                         db.execute(sql)
@@ -936,10 +968,12 @@ while True:
                 # 我们用 diff SQL dump 的方式来获取即将被更新的行.
 
                 old_dump: set[str] = {*db.iterdump()}
+                logger.info(f"\033[32m旧数据\033[0m {old_dump=!s}")
 
                 db.execute(sql)
                 new_dump: set[str] = {*db.iterdump()}
                 db.rollback()
+                logger.info(f"\033[32m新数据\033[0m {new_dump=!s}")
 
                 common_lines: set[str] = old_dump & new_dump
                 old_dump -= common_lines
@@ -948,16 +982,17 @@ while True:
                 if len(old_dump) == 0:
                     assert len(new_dump) == 0
                     print("没有记录被更新.")
-                    continue
+                    return
 
                 updated_table: str = re.fullmatch(
-                    r'INSERT INTO "([^"]+)" VALUES\(.*\);',
+                    r'INSERT INTO "([^"]+)" VALUES\((?:.|\n)*\);',
                     next(iter(old_dump)),
                 )[1]
+                logger.info(f"\033[32m更新的表\033[0m {updated_table=!s}")
                 # 查找创建表的 SQL 语句:
                 for line in common_lines:
                     if re.fullmatch(
-                        rf"CREATE TABLE {updated_table} \(.*\);",
+                        rf"CREATE TABLE {updated_table} \((?:.|\n)*\);",
                         line,
                     ):
                         creating_sql: str = line
@@ -990,7 +1025,7 @@ while True:
 
                 if not print_updated_then_confirm(old_records, new_records):
                     print("已取消.")
-                    continue
+                    return
                 else:
                     with db:
                         db.execute(sql)
@@ -1015,4 +1050,9 @@ while True:
 
     # 用户刻意输入了 `^Z`, 以开启新一轮会话.
     except EOFError:
-        continue
+        return
+
+
+if __name__ == "__main__":
+    while True:
+        main()

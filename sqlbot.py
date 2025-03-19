@@ -634,7 +634,7 @@ def polish(query: str) -> str:
         # 如果连续五次都 understood, 则确实理解了.
         for _ in range(3):
             response = LLM.get_ai("chatter").get_response(messages=msgs)
-            if "Understood." not in response:
+            if "understood" not in response.lower():
                 break
         else:
             break

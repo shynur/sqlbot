@@ -21,7 +21,7 @@ Text2SQL（Text-to-SQL）旨在将自然语言查询转译到SQL语句，允许�
 
 Text2SQL (Text-to-SQL) aims to translate natural language queries into SQL statements, allowing users to access databases using everyday language.
 Traditional Text2SQL approaches, which rely on template/rule-based methods or deep learning, struggle with complex database schemas and diverse query patterns.
-The recent rise of Large Language Models (LLMs) has introduced a new paradigm for Text2SQL, leveraging their powerful language understanding and generation capabilities to achieve remarkable results.
+The recent rise of Large Language Models (LLMs) has introduced a new paradigm for Text2SQL[^1], leveraging their powerful language understanding and generation capabilities to achieve remarkable results.
 However, LLMs are not a silver bullet.
 Directly using a single LLM poses challenges such as high token consumption costs, inherent data privacy risks, and instability in generated results.
 
@@ -68,7 +68,7 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
    LLM生成的SQL未必可靠且往往具有随机性，可能出现语法错误或语义不符的情况（此问题预计无法根除，因为即使是人类也做不到完全正确），尤其是复杂查询往往需要多次尝试和人工核对。
 
 上述问题推动着学界探索克服LLM不足的方案。
-特别地，引入 **多智能体（Multi-Agent）** 协作成为一条富有前景的路径：通过多个智能体分工合作、相互校验，在保证灵活性的同时提高准确率和可靠性。
+特别地，引入 **多智能体（Multi-Agent）** 协作成为一条富有前景的路径[^4]：通过多个智能体分工合作、相互校验，在保证灵活性的同时提高准确率和可靠性。
 
 ### 本文贡献
 
@@ -90,7 +90,7 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
 3. **结果校验与自我修正**：
 
    设计SQL执行校验和错误反馈环节，在真实数据库上执行多轮来验证生成SQL的正确性，后将错误信息反馈给生成智能体进行自我修正。
-   已有研究证明类似的多智能体校对机制可提升查询准确率。
+   已有研究证明类似的多智能体校对机制可提升查询准确率。[^5]
    我们的方法实现了自动错误检测和迭代改进，免去人工介入。
 
 4. **全面的优化策略与工程实现**：
@@ -123,7 +123,7 @@ Text2SQL研究领域经历了从基于模板到神经网络再到LLM驱动的演
 
 早期Text2SQL系统极度依赖 **模板匹配** 和 **规则解析**。
 典型做法是预先定义一组自然语言问句到SQL模板的映射，程序根据用户查询的关键词或句法结构匹配特定的SQL模板，替换槽位以生成SQL。
-例如，IBM早期的系统可能预置规则：“T中哪些记录的F是V”对应SQL结构 `SELECT * FROM T WHERE F = V` 等。
+例如，IBM早期的系统可能预置规则：“T中哪些记录的F是V”对应SQL结构 `SELECT * FROM T WHERE F = V` 等。[^3]
 
 它的缺点很明显：
 - **可扩展性差**：难以覆盖丰富的自然语言表达；
@@ -131,7 +131,7 @@ Text2SQL研究领域经历了从基于模板到神经网络再到LLM驱动的演
 
 数据库模式和查询需求日益复杂，规则/模板方法逐渐力不从心。
 有研究者开始探索数据驱动的学习方法，这可以减少对人工规则的依赖。
-当年的研究中有些值得一提：交互式NLIDB（Natural Language Interface to Database）系统就尝试结合用户澄清提问来改进准确率，例如Li and Jagadish (2014) 提出了交互式自然语言数据库接口，意图借助用户的参与来消歧，提高查询正确率。
+当年的研究中有些值得一提：交互式NLIDB（Natural Language Interface to Database）系统就尝试结合用户澄清提问来改进准确率，例如Li and Jagadish (2014) 提出了交互式自然语言数据库接口，意图借助用户的参与来消歧，提高查询正确率。[^11]
 
 总之，模板和规则方法奠定了Text2SQL的初步基础，其虽有局限性但也推动了后续数据驱动方法的发展。
 
@@ -143,7 +143,7 @@ Text2SQL研究领域经历了从基于模板到神经网络再到LLM驱动的演
 典型的是将Text2SQL视为机器翻译问题，采用 **Encoder-Decoder** 架构，编码器将自然语言问题编码为向量表示，解码器根据表示生成对应的SQL。
 
 早期工作中，基于循环神经网络（RNN，尤其是LSTM）的模型取得了一定成功。
-例如，Seq2SQL模型通过强化学习优化生成的SQL；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
+例如，Seq2SQL模型通过强化学习优化生成的SQL[^7]；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
 这些LSTM序列模型捕捉了自然语言和SQL序列之间的依赖关系，在当时拥有超过传统模板方法的正确率。
 
 但LSTM模型仍有缺点，**长期依赖不足** 和 **跨域泛化弱** 使它们难以有效处理问题中的长距离依赖。
@@ -154,7 +154,7 @@ Text2SQL研究领域经历了从基于模板到神经网络再到LLM驱动的演
 Transformer通过 **自注意力机制** 能够更有效地捕捉长程依赖和复杂结构关系。
 
 如基于Transformer的SQLova、GPSQL等模型在Spider等baseline上拥有领先性能。
-GraPPa通过在大规模表语料上预训练增强模型对数据库模式的表示能力；RAT-SQL利用关系自注意力网络结合数据库模式信息，实现了对模式的有效编码，被认为是Spider Challenge中的标杆模型之一。
+GraPPa通过在大规模表语料上预训练增强模型对数据库模式的表示能力；RAT-SQL利用关系自注意力网络结合数据库模式信息，实现了对模式的有效编码，被认为是Spider Challenge中的标杆模型之一。[^8]
 IRNet等方法融合了语义解析和抽象语法树的思想，提高所生成的SQL的句法正确率。
 
 预训练模型（PLM）也是这一阶段的重要趋势。
@@ -170,8 +170,8 @@ IRNet等方法融合了语义解析和抽象语法树的思想，提高所生成
 只需精心设计prompt，提供一些示例，LLM就能理解任务要求并生成相应的SQL。
 LLM丰富的通用知识和强大的语言生成能力使其能够跨领域泛化，处理见所未见的数据库模式，这解决了传统模型对训练数据的依赖。
 
-有研究者探索了各种 **Prompt Engineering** 技巧，如链式思维提示（Chain-of-Thought）引导LLM逐步推理复杂查询，将问题分解为子问题并逐一求解，再合成最终SQL。
-Wang et al. (2022) 提出的 **自一致性（Self-Consistency）** 解码策略进一步提升了链式推理的可靠性。
+有研究者探索了各种 **Prompt Engineering** 技巧，如链式思维提示（Chain-of-Thought）引导LLM逐步推理复杂查询，将问题分解为子问题并逐一求解，再合成最终SQL。[^2]
+Wang *et al.* (2022) 提出的 **自一致性（Self-Consistency）** 解码策略进一步提升了链式推理的可靠性。[^10]
 具体做法是让LLM对同一问题采样生成多个推理路径/SQL答案，然后通过投票选择最一致的结果。
 
 #### 微调专用LLM
@@ -202,7 +202,7 @@ SQL包含若干子句：
 
 Text2SQL关注如何将自然语言转换为SQL，其中 `SELECT` 最常见，因为用户多是希望从数据库获取信息。
 不同类型的SQL语句对数据库的影响差异很大： `SELECT` 只读，不会改变数据库内容；`UPDATE` / `DELETE` / `DROP` 则会修改数据，不加防范可能导致数据丢失。
-因为有DML的存在，在Text2SQL系统中，必须对潜在的危险SQL进行检测和确认，保障数据安全。
+因为有DML的存在，在Text2SQL系统中，必须对潜在的危险SQL进行检测和确认，保障数据安全。[^17]
 
 生产级数据库会提供 **事务机制**，允许将一系列操作包裹在一个transaction中：要么全部成功提交，要么全部回滚撤销。
 如果在SQL执行过程中发现不合预期，系统可以执行 `ROLLBACK` 撤销此前的改动，从而保证数据库返回一致的状态。
@@ -210,7 +210,7 @@ Text2SQL关注如何将自然语言转换为SQL，其中 `SELECT` 最常见，�
 
 ### 注意力机制
 
-**注意力机制（Attention Mechanism）** 最初由Bahdanau等人在2014年提出，以改进机器翻译中RNN“编码器-解码器”对长序列的处理。
+**注意力机制（Attention Mechanism）** 最初由Bahdanau等人在2014年提出，以改进机器翻译中RNN“编码器-解码器”对长序列的处理。[^12]
 注意力机制的核心思想是在生成每个词时，让模型自动 **聚焦于输入序列中最相关的部分**，而不是依赖固定长度的隐藏状态向量。
 通过计算 **注意力权重**，模型可以评估输入序列各位置对于当前输出的重要性，据此加权汇总输入信息。
 这个过程模拟了人类注意力的选择性：面对冗长的信息，人类会选择性地关注与当前任务相关的要点。
@@ -222,14 +222,14 @@ Text2SQL关注如何将自然语言转换为SQL，其中 `SELECT` 最常见，�
 ### 大语言模型（LLM）
 
 **大语言模型** 指参数规模巨大的深度神经网络模型，通常基于Transformer架构，在海量文本语料上自监督预训练，对自然语言进行深度的理解和生成。
-LLM的 **Few-Shot Learning** 能力极为强大：即使不专门针对某任务训练，通过prompt提供少量示例，LLM也能在新任务上产生相当好的结果。
+LLM的 **Few-Shot Learning** 能力极为强大：即使不专门针对某任务训练，通过prompt提供少量示例，LLM也能在新任务上产生相当好的结果。[^18]
 对于Text2SQL任务，LLM能够“理解”自然语言问题并结合给定的数据库schema直接生成SQL查询。
 LLM还掌握了丰富的语言模式和一定的逻辑推理能力，因而表现出更强的泛化性。
 这种能力在复杂、多样化的数据库环境下尤为宝贵。
 
 纵使LLM存储了海量知识，它的训练数据是静态的且覆盖有限，因此LLM对特定领域中实时更新的信息可能欠缺了解。
 尤其在数据库查询场景中，LLM本身并不“知道”用户数据库的具体内容，因此需要设法将数据库schema等上下文提供给它。
-LLM还存在 **幻觉（Hallucination）**，偶尔会编造看似合理但实则错误的答案。
+LLM还存在 **幻觉（hallucination）**，偶尔会编造看似合理但实则错误的答案。[^19]
 我们的系统结合RAG等手段，努力让LLM“知有所依”，在生成SQL时参考真实数据库文档或示例，减少无根据的胡乱猜测。
 
 **成本** 是另一个无法忽视的难题：LLM的推理往往需要消耗数百至上千tokens，且耗时极久。
@@ -240,7 +240,7 @@ LLM还存在 **幻觉（Hallucination）**，偶尔会编造看似合理但实�
 
 ### 检索增强生成（RAG）
 
-**检索增强生成（Retrieval-Augmented Generation, RAG）** 是一种将生成式模型与外部知识库相结合的技术。
+**检索增强生成（Retrieval-Augmented Generation, RAG）** 是一种将生成式模型与外部知识库相结合的技术。[^13]
 RAG通常包含两部分：检索器和生成器。
 检索器根据用户问题从知识库（可以是文档集合、数据库、已知问答对等）中找到若干条相关内容；然后将这些外部知识与原问题一起送入生成模型，综合生成最终回答。
 RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利用外部最新、权威的数据来提高准确性。
@@ -418,7 +418,7 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 直观上，如果多个模型独立生成了相似的response，那么这条response是正确的概率更高。
 相反，如果各个模型的输出差异很大，说明问题存在歧义或者模型把握不住，此时需要谨慎选择。
 在我们的实现中，每轮需要决策时，都会将全局统一的历史对话和当前问题发送给多位LLM，获取多个响应。
-然后通过 **余弦相似度** 算法计算这些responses的两两相似度，衡量它们在语义上的相近程度。
+然后通过 **余弦相似度** 算法计算这些responses的两两相似度[^16]，衡量它们在语义上的相近程度。
 我们选择平均语义距离最小的那一条response作为最终结果，即所谓最接近“集体共识”的答案。
 
 这一思路类似于Self-Consistency方法在推理任务中的应用：通过集成多个推理路径得到更可靠的结论。
@@ -436,7 +436,7 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 为此，我们对耗时的LLM调用尽可能采取 **异步并行** 处理。
 
 当需要并行生成多条SQL时，我们同时向多个LLM实例发送请求，而不是等待一个返回后再发出下一个请求。
-利用异步I/O和多线程，可以将总耗时降低到最慢的那次调用的时间，而非累计求和。
+利用异步I/O和多线程，可以将总耗时降低到最慢的那次调用的时间，而非累计求和。[^20]
 同理，在错误反馈再生成时，如果有多个SQL需要修正，我们也可以并行地请求智能体改正。
 这些并行化明显提高了系统的吞吐量。
 
@@ -447,7 +447,7 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 #### 上下文缓存
 
 LLM调用的另一个性能瓶颈在于重复的上下文传输和理解，而每次请求对话都需要发送一长串的历史消息记录（数据库schema、范例文档等）在多轮对话中基本是不变的。
-针对这一情况，主流的云端LLM都配备了cache以短期存储LLM运行状态的参数。
+针对这一情况，主流的云端LLM都配备了cache以短期存储LLM运行状态的参数。[^14]
 
 我们的系统实践了 **前缀缓存** 机制：尽可能多地设计前缀通用的prompt模板，并复用单轮对话开启多个并行任务。
 具体包括：
@@ -473,9 +473,9 @@ LLM调用的另一个性能瓶颈在于重复的上下文传输和理解，而�
 此策略类似于启发式搜索中的剪枝，去除了低效路径以减少噪声、节约资源。
 在我们的系统中，长会话剪枝作为保护机制，确保了极端情况下系统仍能在合理时间内给出结果，不至于出现宕机的情况。
 
-### 增强确定性：partial mode 与结构化输出
+### 增强确定性：partial mode与结构化输出
 
-#### partial mode 前缀引导
+#### Partial Mode前缀引导
 
 LLM输出的前缀反映着后续内容的回答方向，反之也成立：后续文本段的生成会受到前缀的引导。
 为在关键步骤增强确定性，我们采纳了 *通义千问* 的 **partial mode** 技术。
@@ -496,10 +496,10 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 例如，在报错解释智能体给用户反馈时，我们预先定义JSON格式的schema，其中包含“error_type”、“suggestion”等字段，方便分析日志。
 得益于openai API提供的JSON响应模式，这一方面消除了LLM自由生成文本带来的不确定性，另一方面也方便程序自动读取处理。
 
-过往的一些工作，如PICARD通过约束模型只能生成符合SQL语法的序列，实际上也是一种结构化输出约束策略：将输出限制在特定的文法或格式。
+过往的一些工作，如PICARD通过约束模型只能生成符合SQL语法的序列，实际上也是一种结构化输出约束策略：将输出限制在特定的文法或格式。[^9]
 从我们的经验来看，当明确要求模型输出JSON且提供示例格式时，大多数情况下模型都能遵循，这比起让其输出散文式的解释要可靠得多。
 
-结构化输出策略使系统与LLM的衔接更加紧密，有效减少了解析错误和歧义，屏蔽了无效输出以节约token的同时，强制LLM填充指定字段以不遗漏任何请求的内容。
+结构化输出策略使系统与LLM的衔接更加紧密，有效减少了解析错误和歧义，屏蔽了无效输出以节约token的同时，强制LLM填充指定字段以不遗漏任何请求的内容。[^15]
 
 ### 数据安全：事务机制与访问控制
 
@@ -526,7 +526,7 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 
 为了综合评估系统性能，我们选取了广泛使用的Text2SQL基准数据集Spider和WikiSQL。
 
-- Spider数据集：包含多个领域的复杂数据库，具有跨域泛化要求，测试系统对复杂查询及未知schema的泛化能力。
+- Spider数据集：包含多个领域的复杂数据库，具有跨域泛化要求，测试系统对复杂查询及未知schema的泛化能力。[^6]
 - WikiSQL数据集：覆盖简单结构的单表查询，适合评估系统在常规的简单查询下的效率和准确性。
 
 评价指标：
@@ -556,7 +556,7 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 实验结果表明，智能体数量增加可以显著提高准确率和稳定性，但数量超过5后，准确率提升趋势变缓，甚至略有下降。
 推测这可能是因为随着智能体数量的增加，模型生成的SQL候选答案多样性提高，而噪声或错误答案的数量也随之增加，导致相似度投票机制中出现干扰现象，使最终选择的SQL不一定更优。
 
-此外，智能体数量的增加显著增加了系统开销，表现为token消耗量的增加和响应延迟的上升。随着智能体数目的增加，更有可能出现单次耗时极久的API请求，由于木桶效应，此时该API请求会主导整轮投票决策的时长，导致整体系统效率下降。
+此外，智能体数量的增加显著增加了系统开销，表现为token消耗量的增加和响应延迟的上升。随着智能体数目的增加，更有可能出现单次耗时极久的API请求，由于“木桶效应”，此时该API请求会主导整轮投票决策的时长，导致整体系统效率下降。
 
 具体而言，在智能体数量为1到3时，查询准确率提高最明显，平均约30%；当智能体数量从3增加到5时，准确率进一步提升了约14%。
 但从5增加到7时，准确率仅提升不到4%，甚至在某些复杂查询场景下出现了准确率轻微下降的情况。
@@ -604,7 +604,7 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 实验过程中，我们与基准模型、系统自身在不同智能体数量下的配置进行了对比；此外，还针对各项优化策略进行了消融实验，以明确它们对系统性能的具体影响。
 
 结果表明，本文提出的多智能体LLM架构在准确率、效率、稳定性上均表现出显著优势。
-这些成果可为后续的研究与实际应用提供有价值的参考与指导。
+这些成果可为将来的研究与应用提供一些参考。
 
 ## 参考文献
 
@@ -612,7 +612,7 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 
 [^2]: Xiaohu Zhu, Qian Li, Lizhen Cui, and Yongkang Liu, “Large Language Model Enhanced Text-to-SQL Generation: A Survey.” *arXiv preprint arXiv:2410.06011*, 2024 ([](https://arxiv.org/html/2410.06011v1#:~:text=Intelligent%20agent,several%20LLM%20Agent%20systems%20that)).
 
-[^3]: “MAC-SQL: A Multi-Agent Collaborative Framework for Text-to-SQL.” *arXiv preprint arXiv:2312.11242*, 2024 ([](https://openreview.net/pdf/8b69d4b61849bf673ce148826907e4d5d44bcee2.pdf#:~:text=Figure%202%3A%20The%20overview%20of,then%20refines%20faulty%20SQL%20queries)).
+[^3]: Laura Chiticariu, Rajasekar Krishnamurthy, Yunyao Li, Sriram Raghavan, Frederick R. Reiss, and Shivakumar Vaithyanathan, “SystemT: an algebraic approach to declarative information extraction.” *ACL*, 2010 ([](https://dl.acm.org/doi/10.5555/1858681.1858695)).
 
 [^4]: Chen Shen, Jin Wang, Sajjadur Rahman, and Eser Kandogan, “Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models (MageSQL).” *CIKM (Demo)*, 2024 ([](https://megagon.ai/publications/demonstration-of-a-multi-agent-framework-for-text-to-sql-applications-with-large-language-models/#:~:text=The%20Text,modify%20the%20agents%20with%20different)).
 
@@ -633,3 +633,17 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 [^12]: Dave Bergmann and Cole Stryker, “What is an attention mechanism?” *IBM AI Blog*, 2024 ([](https://www.ibm.com/think/topics/attention-mechanism#:~:text=An%20attention%20mechanism%20is%20a,power%20popular%20applications%20like%20ChatGPT)).
 
 [^13]: “What is RAG (Retrieval-Augmented Generation)?” *AWS AI Blog*, 2023 ([](https://aws.amazon.com/what-is/retrieval-augmented-generation/#:~:text=Retrieval,relevant%2C%20accurate%2C%20and%20useful%20in)).
+
+[^14]: In Gim, Guojun Chen, Seung-seob Lee, Nikhil Sarda, Anurag Khandelwal, and Lin Zhong, “Prompt Cache: Modular Attention Reuse for Low-Latency Inference” *MLSys*, 2024 ([](https://arxiv.org/abs/2311.04934)).
+
+[^15]: Michael Xieyang Liu, Frederick Liu, Alexander J. Fiannaca, Terry Koo, Lucas Dixon, Michael Terry, *et al.*, “"We Need Structured Output": Towards User-centered Constraints on Large Language Model Output.” *CHI EA*, 2024 ([](https://dl.acm.org/doi/10.1145/3613905.3650756)).
+
+[^16]: Sandeep Tata and Jignesh M. Patel, “Estimating the selectivity of tf-idf based cosine similarity predicates.” *ACM SIGMOD Record*, 2007 ([](https://dl.acm.org/doi/abs/10.1145/1328854.1328855)).
+
+[^17]: Xutan Peng, Yipeng Zhang, Jingfeng Yang, and Mark Stevenson, “On the Vulnerabilities of Text-to-SQL Models.” *IEEE*, 2023 ([](https://ieeexplore.ieee.org/abstract/document/10301242)).
+
+[^18]: Yaqing Wang, Quanming Yao, James T. Kwok and Lionel M. Ni, “Generalizing from a Few Examples: A Survey on Few-shot Learning.” *ACM*, 2020 ([](https://dl.acm.org/doi/abs/10.1145/3386252)).
+
+[^19]: Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong, Zhangyin Feng, Haotian Wang, *et al.*, “A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions.” *ACM*, 2025 ([](https://dl.acm.org/doi/abs/10.1145/3703155)).
+
+[^20]: Brian Quinlan, “PEP 3148 – futures - execute computations asynchronously.” *Python Enhancement Proposals*, 2009 ([](https://peps.python.org/pep-3148/)).

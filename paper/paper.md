@@ -605,3 +605,31 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 
 结果表明，本文提出的多智能体LLM架构在准确率、效率、稳定性上均表现出显著优势。
 这些成果可为后续的研究与实际应用提供有价值的参考与指导。
+
+## 参考文献
+
+[^1]: Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL.” *arXiv preprint arXiv:2406.08426*, 2024 ([Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL](https://arxiv.org/html/2406.08426v1#:~:text=Generating%20accurate%20SQL%20according%20to,based%20systems.%20Most%20recently%2C%20large)).
+
+[^2]: Large Language Model Enhanced Text-to-SQL Generation: A Survey.” *arXiv preprint arXiv:2410.06011*, 2024 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=Intelligent%20agent,several%20LLM%20Agent%20systems%20that)).
+
+[^3]: MAC-SQL: A Multi-Agent Collaborative Framework for Text-to-SQL.” *arXiv preprint arXiv:2312.11242*, 2024 ([](https://openreview.net/pdf/8b69d4b61849bf673ce148826907e4d5d44bcee2.pdf#:~:text=Figure%202%3A%20The%20overview%20of,then%20refines%20faulty%20SQL%20queries)).
+
+[^4]: Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models (MageSQL).” *CIKM (Demo)*, 2024 ([Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models - Megagon Labs](https://megagon.ai/publications/demonstration-of-a-multi-agent-framework-for-text-to-sql-applications-with-large-language-models/#:~:text=The%20Text,modify%20the%20agents%20with%20different)).
+
+[^5]: Tool-assisted Agent on SQL Inspection and Refinement in Real-world Scenarios.” *arXiv preprint arXiv:2408.16991*, 2024 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=Tool,corresponding%20cells%20in%20the%20database)).
+
+[^6]: Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task.” *EMNLP*, 2018 ([Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL](https://arxiv.org/html/2406.08426v1#:~:text=Image%3A%20Refer%20to%20caption%20Figure,to%20answer%20the%20user%20question)).
+
+[^7]: Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=,to%20yield%20abstract%20syntax%20trees)).
+
+[^8]: RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers.” *ACL*, 2020 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=language%20questions%20and%20database%20tables,to%20yield%20abstract%20syntax%20trees)).
+
+[^9]: PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models.” *EMNLP*, 2021 ([Large Language Model Enhanced Text-to-SQL Generation: A Survey](https://arxiv.org/html/2410.06011v1#:~:text=linking%2C%20columns%2C%20and%20data%20values,task)).
+
+[^10]: Self-Consistency Improves Chain of Thought Reasoning in Language Models.” *ICLR (Poster)*, 2023 ([Self-Consistency Improves Chain of Thought Reasoning in Language Models | OpenReview](https://openreview.net/forum?id=1PL1NIMMrw#:~:text=paper%2C%20we%20propose%20a%20new,and%20commonsense%20reasoning%20benchmarks%2C%20including)).
+
+[^11]: Constructing an Interactive Natural Language Interface for Relational Databases.” *VLDB*, 2014 ([Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL](https://arxiv.org/html/2406.08426v1#:~:text=,Radev)).
+
+[^12]: What is an attention mechanism?” *IBM AI Blog*, 2024 ([What is an attention mechanism? | IBM](https://www.ibm.com/think/topics/attention-mechanism#:~:text=An%20attention%20mechanism%20is%20a,power%20popular%20applications%20like%20ChatGPT)).
+
+[^13]: What is RAG (Retrieval-Augmented Generation)?” *AWS AI Blog*, 2023 ([What is RAG? - Retrieval-Augmented Generation AI Explained - AWS](https://aws.amazon.com/what-is/retrieval-augmented-generation/#:~:text=Retrieval,relevant%2C%20accurate%2C%20and%20useful%20in)).

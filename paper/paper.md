@@ -258,7 +258,40 @@ RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利
 
 下展示了系统架构和数据流动的示意图（各模块和智能体的交互关系）。
 
-![基于多智能体LLM的Text2SQL系统架构示的意图](略)
+```mermaid
+graph LR
+
+check_sql{"`校验<br>SQL<br>合法性`"}
+
+print_err --> ended@{ shape: stadium, label: "结束本轮对话" }
+
+db@{ shape: lin-cyl, label: "目标数据库" } --行列结构与类型信息--> AI_gen_prompt("`Prompt 生成<br>智能体`") & AI_commu & AI_sorry
+
+doc@{ shape: docs, label: "SQL 文档与示例"} --> rag@{ shape: tri, label: "RAG<br>模块" }
+rag --知识片段--> AI_gen_prompt
+
+user((用户)) --自然语言查询--> AI_commu(需求沟通<br>智能体) & AI_sorry
+AI_commu --> compreh{分析<br>需求}
+compreh --需求模糊，反问用户--> user
+compreh --需求明确--> polish[润色用户的请求] --"AI 润色过的请求"--> rag & AI_gen_prompt
+AI_gen_prompt --prompt--> AI_gen_sql("`SQL 生成<br>智能体<br>(复数)`")
+
+AI_gen_sql --> sql1@{ shape: braces, label: "SQL<br>代码<br>(复数)" } --> check_sql
+check_sql --通过--> sql2@{ shape: braces, label: "通过<br>校验的<br>SQL 代码<br>(复数)" }
+check_sql --不通过--> retry{"`重试<br>次数`"}
+retry --1--> re_gen_sql@{ shape: div-rect, label: "请求重新生成" }
+re_gen_sql --报错信息--> AI_gen_sql
+retry --2--> errs@{ shape: braces, label: "报错<br>信息<br>(复数)" }
+
+sql2 & errs --> cmp{决策}
+cmp --大部分是报错--> sim_err[相似度算法] --最具有代表性的报错--> AI_sorry("`报错解释<br>智能体`") --> print_err[用自然语言反馈给用户]
+cmp --大部分通过校验--> sim_sql[相似度算法] --"最具有代表性的 SQL 语句"--> exec{执行 SQL}
+
+exec --"是 SELECT 语句"--> print_select@{ shape: procs, label: "打印查询结果" } --> ended
+exec --"不是 SELECT"--> print_update@{ shape: procs, label: "打印修改前后的列" } --> confirm{用户确认}
+confirm --yes--> commit[COMMIT] --> ended
+confirm --"no"--> rollback[ROLLBACK] --> ended
+```
 
 系统包含多个阶段：数据库元信息获取、需求澄清、知识检索、prompt生成、SQL生成与校验、结果反馈与执行等。
 每个阶段由专门的智能体或模块负责，实现任务的分解与协作。
@@ -281,6 +314,15 @@ RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利
 如果用户输入的问题不完整或含糊，沟通智能体会提问澄清细节，直到形成清晰、具体的查询意图。
 这个过程类似于业务人员与数据库专家之间的需求确认对话，确保系统“理解”用户真正想要的是什么。
 
+```python
+def 需求沟通(query, 数据库元数据) -> str:
+    预定义prompt = 创建prompt(数据库元数据)
+    while True:
+        回复 = 与AI对话(预定义prompt)
+        if 'understood' in 回复:
+            return 与AI对话(总结用户的需求)
+```
+
 澄清后的用户请求（自然语言形式）将被整理和润色，然后交给 prompt 生成智能体们。
 
 #### RAG 检索
@@ -293,6 +335,75 @@ RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利
 这些检索到的内容被视为辅助知识，将被插入到prompt中提供给LLM，帮助它更好地理解问题、生成SQL。
 
 RAG检索的作用相当关键，尤其当用户问题涉及复杂业务逻辑时，相关知识的prompt可以显著提高准确率。
+
+##### 算法分析
+
+以代码中 `RAG.retrieve_context(self, query: str, top_k: int) -> list[str]` 为例，该方法基于用户查询 (`query`) 从文档 (`sql_doc.txt`) 中获取最相关的 `top_k` 条信息。
+
+首先读取文档 `sql_doc.txt`，按空行切分，得到 `n` 个片段：
+
+$$
+\mathcal{C} = \{C_1, C_2, ..., C_n\}
+$$
+
+我们采用了 `sentence-transformers/all-MiniLM-L6-v2` 预训练模型计算每个片段 $C_i$ 的嵌入向量 $E_{C_i}$：
+
+$$
+H = \text{Transformer}(C_i) \in \mathbb{R}^{L \times d}
+$$
+
+其中：$H$ 是隐藏状态矩阵，$L$ 是序列长度，$d$ 是嵌入维度。
+使用 **加权平均池化（Mean Pooling）** 计算最终的片段embedding：
+
+$$
+E_{C_i} = \frac{\sum_{j=1}^{L} H_j \cdot M_j}{\sum_{j=1}^{L} M_j}
+$$
+
+其中 $M_j$ 是 attention_mask，确保填充部分不影响计算。
+最后归一化以提高检索稳定性：
+
+$$
+E_{C_i,\text{norm}} = \frac{E_{C_i}}{\|E_{C_i}\|}
+$$
+
+计算完片段的embedding后，构建FAISS近邻搜索索引。
+**FAISS（IndexFlatL2）** 以L2距离为准则，存储 $n$ 个片段嵌入：
+
+$$
+\mathcal{I} = \text{faiss.IndexFlatL2}(d)
+$$
+
+将所有 $E_{C_i}$ 添加至索引：
+
+$$
+\mathcal{I}.\text{add}(\{E_{C_1}, E_{C_2}, ..., E_{C_n} \})
+$$
+
+对用户查询 `query` 计算嵌入 $E_q$：
+
+$$
+E_q = \frac{\sum_{j=1}^{L} H_j \cdot M_j}{\sum_{j=1}^{L} M_j}
+$$
+
+并归一化：
+
+$$
+E_{q,\text{norm}} = \frac{E_q}{\|E_q\|}
+$$
+
+最后进行近邻搜索，计算查询嵌入 $E_q$ 与文档嵌入 $E_{C_i}$ 之间的 **欧几里得距离**：
+
+$$
+D(E_q, E_{C_i}) = \sum_{j=1}^{d} (E_{q,j} - E_{C_i,j})^2
+$$
+
+前 `top_k` 个最小距离的片段索引即为：
+
+$$
+\mathcal{R} = \arg\min_{\{C_i\}} D(E_q, E_{C_i})
+$$
+
+对应片段 $\{C_{r_1}, C_{r_2}, ..., C_{r_k} \}$，此即最终的返回值。
 
 #### Prompt 生成智能体
 
@@ -427,6 +538,69 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 实验表明，多智能体融合策略相比单一模型输出能有效减少错误率，特别是在复杂查询和有歧义的问题上，投票机制往往可以避免模型“一意孤行”走入歧途。
 但很显然，该策略要求调用多个LLM，会带来很大的token开销与时间成本。
 我们将在下文的性能优化部分讨论如何折中处理。
+
+#### 算法分析
+
+我们以代码中的函数 `most_representative_of(responses: list[str]) -> str` 为例。
+它负责从 `responses` 列表中找出 **最具代表性** 的文本。
+
+首先对 `responses` 进行 **TF-IDF 计算**。
+假设 `responses` 共有 `n=len(responses)` 段文本，每个文本的词汇空间大小为 $m$，则 **TF-IDF 矩阵** $M$ 是一个 $n \times m$ 的矩阵：
+
+$$
+M = [ \mathbf{v}_1, \mathbf{v}_2, \dots, \mathbf{v}_n ]^T
+$$
+
+其中，$\mathbf{v}_i$ 是第 $i$ 个文本的 **TF-IDF 向量**。
+知道了文本的数学表示，就可以借此计算它们两两之间的 **余弦相似度（Cosine Similarity）** 。
+文本 $i$ 和文本 $j$ 之间的相似度为：
+
+$$
+\text{sim}(i, j) = \frac{\mathbf{v}_i \cdot \mathbf{v}_j}{\|\mathbf{v}_i\| \|\mathbf{v}_j\|}
+$$
+
+这样就可以得到 $n \times n$ 的 **余弦相似度矩阵** $S$：
+
+$$
+S = \begin{bmatrix}
+1 & \text{sim}(1,2) & \text{sim}(1,3) & \dots & \text{sim}(1,n) \\
+\text{sim}(2,1) & 1 & \text{sim}(2,3) & \dots & \text{sim}(2,n) \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+\text{sim}(n,1) & \text{sim}(n,2) & \dots & 1
+\end{bmatrix}
+$$
+
+其中，对角线上的值都是1（因为文本和自身的相似度恒为1）。
+对于每个文本 $i$，它的 **平均相似度** 计算公式为：
+
+$$
+\bar{s}_i = \frac{1}{n-1} \sum_{\substack{j=1 \\ j \neq i}}^{n} S_{i,j}
+$$
+
+即，取该文本与所有 **其它文本** 的相似度总和，再除以 $n-1$ 进行归一化。
+选取 **平均相似度最高的文本** $\text{best\_index} = \arg\max_{i} \bar{s}_i$ 作为 **最具代表性文本** 返回。
+
+#### 代码示例
+
+```python
+def most_representative_of(responses: list[str]) -> str:
+    # 将文本转为 TF-IDF 向量:
+    tfidf_matrix = sklearn.feature_extraction.text.TfidfVectorizer().fit_transform(responses)
+    # 计算余弦相似度矩阵:
+    sim_matrix = sklearn.metrics.pairwise.cosine_similarity(tfidf_matrix)
+    # 计算每个文本与其他文本的平均相似度:
+    avg_similarities = []
+    for i in range(len(responses)):
+        # 去除自身相似度 (即 1.0), 除以其它文本个数:
+        avg_similarities.append(
+            (numpy.sum(sim_matrix[i]) - 1) / (len(responses) - 1)
+            if len(responses) > 1
+            else 1.0
+        )
+    # 找出平均相似度最高的文本:
+    best_index = int(numpy.argmax(avg_similarities))
+    return responses[best_index]
+```
 
 ### 提升性能：异步并行与缓存机制
 
@@ -647,3 +821,9 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 [^19]: Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong, Zhangyin Feng, Haotian Wang, *et al.*, “A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions.” *ACM*, 2025 ([](https://dl.acm.org/doi/abs/10.1145/3703155)).
 
 [^20]: Brian Quinlan, “PEP 3148 – futures - execute computations asynchronously.” *Python Enhancement Proposals*, 2009 ([](https://peps.python.org/pep-3148/)).
+
+<!-- Local Variables: -->
+<!-- eval: (electric-quote-local-mode -1) -->
+<!-- eval: (auto-revert-mode) -->
+<!-- markdown-enable-math: t -->
+<!-- End: -->

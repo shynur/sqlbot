@@ -259,38 +259,42 @@ RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利
 下展示了系统架构和数据流动的示意图（各模块和智能体的交互关系）。
 
 ```mermaid
-graph LR
+graph TD
+
+user((用户))
 
 check_sql{"`校验<br>SQL<br>合法性`"}
 
-print_err --> ended@{ shape: stadium, label: "结束本轮对话" }
+print_err --x ended@{ shape: stadium, label: "结束本轮对话" }
 
-db@{ shape: lin-cyl, label: "目标数据库" } --行列结构与类型信息--> AI_gen_prompt("`Prompt 生成<br>智能体`") & AI_commu & AI_sorry
+db@{ shape: lin-cyl, label: "目标数据库" } ==行列结构与类型信息==> AI_gen_prompt("`Prompt 生成<br>智能体`") & AI_commu
+db --行列结构与类型信息--> AI_sorry
 
-doc@{ shape: docs, label: "SQL 文档与示例"} --> rag@{ shape: tri, label: "RAG<br>模块" }
-rag --知识片段--> AI_gen_prompt
+doc@{ shape: docs, label: "SQL 文档与示例"} ==> rag@{ shape: tri, label: "RAG<br>模块" } ==知识片段==> AI_gen_prompt
 
-user((用户)) --自然语言查询--> AI_commu(需求沟通<br>智能体) & AI_sorry
-AI_commu --> compreh{分析<br>需求}
+user ==自然语言查询==> AI_commu(需求沟通<br>智能体)
+user --原始查询--> AI_sorry
+AI_commu ==> compreh{分析<br>需求}
 compreh --需求模糊，反问用户--> user
-compreh --需求明确--> polish[润色用户的请求] --"AI 润色过的请求"--> rag & AI_gen_prompt
-AI_gen_prompt --prompt--> AI_gen_sql("`SQL 生成<br>智能体<br>(复数)`")
+compreh ==需求明确==> polish[润色用户的请求] =="AI 润色过的请求"==> rag & AI_gen_prompt
+AI_gen_prompt ==prompt==> AI_gen_sql("`SQL 生成<br>智能体<br>(复数)`")
 
-AI_gen_sql --> sql1@{ shape: braces, label: "SQL<br>代码<br>(复数)" } --> check_sql
-check_sql --通过--> sql2@{ shape: braces, label: "通过<br>校验的<br>SQL 代码<br>(复数)" }
+AI_gen_sql ==> sql1@{ shape: braces, label: "SQL<br>代码<br>(复数)" } ==> check_sql
+check_sql ==通过==> sql2@{ shape: braces, label: "通过<br>校验的<br>SQL 代码<br>(复数)" }
 check_sql --不通过--> retry{"`重试<br>次数`"}
 retry --1--> re_gen_sql@{ shape: div-rect, label: "请求重新生成" }
 re_gen_sql --报错信息--> AI_gen_sql
 retry --2--> errs@{ shape: braces, label: "报错<br>信息<br>(复数)" }
 
-sql2 & errs --> cmp{决策}
+sql2 ==> cmp{决策}
+errs --> cmp{决策}
 cmp --大部分是报错--> sim_err[相似度算法] --最具有代表性的报错--> AI_sorry("`报错解释<br>智能体`") --> print_err[用自然语言反馈给用户]
-cmp --大部分通过校验--> sim_sql[相似度算法] --"最具有代表性的 SQL 语句"--> exec{执行 SQL}
+cmp ==大部分通过校验==> sim_sql[相似度算法] =="最具有代表性的 SQL 语句"==> exec{执行 SQL}
 
-exec --"是 SELECT 语句"--> print_select@{ shape: procs, label: "打印查询结果" } --> ended
+exec --"是 SELECT 语句"--> print_select@{ shape: procs, label: "打印查询结果" } --o ended
 exec --"不是 SELECT"--> print_update@{ shape: procs, label: "打印修改前后的列" } --> confirm{用户确认}
-confirm --yes--> commit[COMMIT] --> ended
-confirm --"no"--> rollback[ROLLBACK] --> ended
+confirm --yes--> commit[COMMIT] --o ended
+confirm --"no"--> rollback[ROLLBACK] --o ended
 ```
 
 系统包含多个阶段：数据库元信息获取、需求澄清、知识检索、prompt生成、SQL生成与校验、结果反馈与执行等。

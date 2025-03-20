@@ -719,11 +719,52 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 首先将智能体数量设置为1，保留原有的流水线设计（包括需求澄清、RAG知识检索、prompt生成、SQL校验及反馈机制等），再与传统单一LLM直接对话的模式进行对比。
 实验的目的是衡量架构本身的优势。
 
-查询准确率：与传统单一LLM直接调用相比，采用流水线架构的单智能体模式在Spider数据集上的SQL查询准确率提升了约12%，在WikiSQL上提升约8%。
+```mermaid
+sankey-beta
 
-执行效率：尽管流水线架构引入了额外的步骤（如RAG检索和SQL校验），但得益于prompt优化和上下文缓存机制，系统整体响应时间仅增加了约10%，准确率表现仍优于传统单一LLM直接交互的模式。
+Pipeline AI, Pipeline Pass, 16738
+Simple Chat, Chat Pass, 15236
 
-结果稳定性：由于采用了SQL校验与反馈机制，本系统的稳定性明显提升，同一查询的SQL输出一致性从传统单一LLM的约70%提高至超过90%。
+Pipeline Pass, Pipeline Spider, 7890
+Pipeline Spider, Spider, 7890
+Chat Pass, Chat Spider, 7044
+Chat Spider, Spider, 7044
+
+Pipeline Pass, Pipeline WikiSQL, 8848
+Pipeline WikiSQL, WikiSQL, 8848
+Chat Pass, Chat WikiSQL, 8192
+Chat WikiSQL, WikiSQL, 8192
+
+Pipeline AI,  Failed, 3262
+Simple Chat,  Failed, 4764
+```
+
+查询准确率：与传统单一LLM直接调用相比，采用流水线架构的单智能体模式在Spider数据集上的SQL查询准确率提升了约12%，在WikiSQL上提升约8%。（公平起见，我们也给单一LLM提供了包含上下文的prompt。）
+
+```mermaid
+xychart-beta
+    x-axis ["Pipeline@Spider", "Chat@Spider", "_1", "Pipeline@WikiSQL", "Chat@WikiSQL", "_2"]
+    y-axis "平均耗时/ms" 1000 --> 6000
+    bar [5397, 4318, 0, 4416, 3680, 0]
+```
+
+执行效率：尽管流水线架构引入了额外的步骤（如RAG检索和SQL校验），但得益于prompt优化和上下文缓存机制，系统整体响应时间仅增加了约23%，准确率表现仍优于传统单一LLM直接交互的模式。
+
+```mermaid
+pie title 相似度极小的 SQL 的占比 (Simple Chat)
+    "数量最多" : 44
+    "第二多" : 30
+    "其余" : 26
+```
+
+```mermaid
+pie title 相似度极小的 SQL 的占比 (Pipeline AI)
+    "数量最多" : 49
+    "第二多" : 36
+    "其余" : 15
+```
+
+结果稳定性：由于采用了SQL校验与反馈机制，本系统的稳定性明显提升，同一查询的SQL输出一致性从传统单一LLM的约60%提高至70%。
 
 通过上述基准测试，我们证实了即便是在智能体数量退化为单个的情况下，本系统设计的多阶段流水线依然能显著提高Text2SQL任务的准确率和稳定性，同时有效控制响应延迟，证明本文所提出的架构是有效且实用的。
 

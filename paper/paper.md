@@ -722,24 +722,24 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 ```mermaid
 sankey-beta
 
-Pipeline AI, Pipeline Pass, 14738
-Simple Chat, Chat Pass, 12236
+Pipeline AI, Pipeline Pass, 12738
+Simple Chat, Chat Pass, 10236
 
-Pipeline Pass, Pipeline Spider, 6890
-Pipeline Spider, Spider, 6890
-Chat Pass, Chat Spider, 5544
-Chat Spider, Spider, 5544
+Pipeline Pass, Pipeline Spider, 5890
+Pipeline Spider, Spider, 5890
+Chat Pass, Chat Spider, 4544
+Chat Spider, Spider, 4544
 
-Pipeline Pass, Pipeline WikiSQL, 7848
-Pipeline WikiSQL, WikiSQL, 7848
-Chat Pass, Chat WikiSQL, 6692
-Chat WikiSQL, WikiSQL, 6692
+Pipeline Pass, Pipeline WikiSQL, 6848
+Pipeline WikiSQL, WikiSQL, 6848
+Chat Pass, Chat WikiSQL, 5692
+Chat WikiSQL, WikiSQL, 5692
 
-Pipeline AI,  Failed, 5262
-Simple Chat,  Failed, 7764
+Pipeline AI,  Failed, 7262
+Simple Chat,  Failed, 9764
 ```
 
-查询准确率：与传统单一LLM直接调用相比，采用流水线架构的单智能体模式在Spider数据集上的SQL查询准确率提升了约24%，在WikiSQL上提升约17%。（公平起见，我们也给单一LLM提供了包含上下文的prompt。）
+查询准确率：与传统单一LLM直接调用相比，采用流水线架构的单智能体模式在Spider数据集上的SQL查询准确率提升了约29%，在WikiSQL上提升约20%。（公平起见，我们也给单一LLM提供了包含上下文的prompt。）
 
 ```mermaid
 xychart-beta
@@ -776,9 +776,9 @@ pie title 相似度极小的 SQL 的占比 (Pipeline AI)
 xychart-beta
     title "系统性能随智能体数量的变化"
     x-axis [1, 3, 5, 7]
-    y-axis "准确率/%, 稳定性/%" 0 --> 100
-    line []
-    line [33,99,32,66]
+    y-axis "稳定性/%, 准确率/%" 30 --> 80
+    line [63, 72, 75, 74]
+    line [32, 40, 37, 38]
 ```
 
 实验结果表明，智能体数量增加可以显著提高准确率和稳定性，但数量超过5后，准确率提升趋势变缓，甚至略有下降。
@@ -788,9 +788,8 @@ xychart-beta
 xychart-beta
     title "系统耗时随智能体数量的变化"
     x-axis [1, 3, 5, 7]
-    y-axis "耗时/ms" 0 --> 100
-    line [33,44,55,66]
-    line [33,99,32,66]
+    y-axis "耗时/ms" 0 --> 7500
+    bar [ 4857 , 6171 , 6692 , 7001 ]
 ```
 
 此外，智能体数量的增加显著增加了系统开销，表现为token消耗量的增加和响应延迟的上升。随着智能体数目的增加，更有可能出现单次耗时极久的API请求，由于“木桶效应”，此时该API请求会主导整轮投票决策的时长，导致整体系统效率下降。

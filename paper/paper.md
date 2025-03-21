@@ -70,7 +70,7 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
 典型的是将Text2SQL视为机器翻译问题，采用 **Encoder-Decoder** 架构，编码器将自然语言问题编码为向量表示，解码器根据表示生成对应的SQL。
 
 早期工作中，基于循环神经网络（RNN，尤其是LSTM）的模型取得了一定成功。
-例如，Seq2SQL模型通过强化学习优化生成的SQL\[7\]；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
+例如，Seq2SQL模型通过强化学习优化生成的SQL\[3\]；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
 
 但LSTM模型仍有缺点，**长期依赖不足** 和 **跨域泛化弱** 使它们难以有效处理问题中的长距离依赖。
 而且这些模型通常需要在大规模标注的语料上进行训练，可以猜到对于新领域（未知数据库模式）往往表现不佳，事实也确实如此。
@@ -90,7 +90,7 @@ GraPPa通过在大规模表语料上预训练增强模型对数据库模式的�
 大语言模型（如GPT-3系列）的出现，为Text2SQL提供了新的范式，即 **基于prompt的零样本/小样本学习**。
 只需精心设计prompt，提供一些示例，LLM就能理解任务要求并生成相应的SQL。
 
-有研究者探索了各种 **Prompt Engineering** 技巧，如链式思维提示（Chain-of-Thought）引导LLM逐步推理复杂查询，将问题分解为子问题并逐一求解，再合成最终SQL。\[3\]
+有研究者探索了各种 **Prompt Engineering** 技巧，如链式思维提示（Chain-of-Thought）引导LLM逐步推理复杂查询，将问题分解为子问题并逐一求解，再合成最终SQL。\[7\]
 Wang *et al.* (2022) 提出的 **自一致性（Self-Consistency）** 解码策略进一步提升了链式推理的可靠性。\[10\]
 
 另一些工作尝试对开源LLM进行专门的Text2SQL微调，以在保留LLM强大能力的同时，注入领域知识和术语。
@@ -826,7 +826,7 @@ xychart-beta
 
 \[2\] Laura Chiticariu, Rajasekar Krishnamurthy, Yunyao Li, Sriram Raghavan, Frederick R. Reiss, and Shivakumar Vaithyanathan, “SystemT: an algebraic approach to declarative information extraction.” *ACL*, 2010 (<https://dl.acm.org/doi/10.5555/1858681.1858695>).
 
-\[3\] Xiaohu Zhu, Qian Li, Lizhen Cui, and Yongkang Liu, “Large Language Model Enhanced Text-to-SQL Generation: A Survey.” *arXiv preprint arXiv:2410.06011*, 2024 (<https://arxiv.org/html/2410.06011v1>).
+\[3\] V. Zhong, C. Xiong, and R. Socher, “Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017.
 
 \[4\] Chen Shen, Jin Wang, Sajjadur Rahman, and Eser Kandogan, “Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models (MageSQL).” *CIKM (Demo)*, 2024 (<https://megagon.ai/publications/demonstration-of-a-multi-agent-framework-for-text-to-sql-applications-with-large-language-models/>).
 
@@ -834,7 +834,7 @@ xychart-beta
 
 \[6\] Tao Yu, Rui Zhang, Kai Yang, Michihiro Yasunaga, Dongxu Wang, Zifan Li, *et al.*, “Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task.” *EMNLP*, 2018 (<https://arxiv.org/abs/1809.08887>).
 
-\[7\] V. Zhong, C. Xiong, and R. Socher, “Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017.
+\[7\] Xiaohu Zhu, Qian Li, Lizhen Cui, and Yongkang Liu, “Large Language Model Enhanced Text-to-SQL Generation: A Survey.” *arXiv preprint arXiv:2410.06011*, 2024 (<https://arxiv.org/html/2410.06011v1>).
 
 \[8\] Bailin Wang, Richard Shin, Xiaodong Liu, Oleksandr Polozov, and Matthew Richardson, “RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers.” *ACL*, 2020 (<https://arxiv.org/abs/1911.04942>).
 

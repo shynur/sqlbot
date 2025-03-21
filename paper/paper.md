@@ -58,7 +58,7 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
 - **适应性弱**：无法处理未收录的语法或复杂查询。
 
 有研究者开始探索数据驱动的学习方法，这可以减少对人工规则的依赖。
-例如，交互式NLIDB（Natural Language Interface to Database）系统就尝试结合用户澄清提问来改进准确率。\[11\]
+例如，交互式NLIDB（Natural Language Interface to Database）系统就尝试结合用户澄清提问来改进准确率。\[3\]
 
 总之，模板和规则方法奠定了Text2SQL的初步基础，其虽有局限性但也推动了后续数据驱动方法的发展。
 
@@ -70,7 +70,7 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
 典型的是将Text2SQL视为机器翻译问题，采用 **Encoder-Decoder** 架构，编码器将自然语言问题编码为向量表示，解码器根据表示生成对应的SQL。
 
 早期工作中，基于循环神经网络（RNN，尤其是LSTM）的模型取得了一定成功。
-例如，Seq2SQL模型通过强化学习优化生成的SQL\[3\]；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
+例如，Seq2SQL模型通过强化学习优化生成的SQL\[11\]；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
 
 但LSTM模型仍有缺点，**长期依赖不足** 和 **跨域泛化弱** 使它们难以有效处理问题中的长距离依赖。
 而且这些模型通常需要在大规模标注的语料上进行训练，可以猜到对于新领域（未知数据库模式）往往表现不佳，事实也确实如此。
@@ -826,7 +826,7 @@ xychart-beta
 
 \[2\] Laura Chiticariu, Rajasekar Krishnamurthy, Yunyao Li, Sriram Raghavan, Frederick R. Reiss, and Shivakumar Vaithyanathan, “SystemT: an algebraic approach to declarative information extraction.” *ACL*, 2010 (<https://dl.acm.org/doi/10.5555/1858681.1858695>).
 
-\[3\] V. Zhong, C. Xiong, and R. Socher, “Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017.
+\[3\] F. Li and H. V. Jagadish, “Constructing an Interactive Natural Language Interface for Relational Databases.” *VLDB*, 2014 (<https://dl.acm.org/doi/10.14778/2735461.2735468>).
 
 \[4\] Bailin Wang, Richard Shin, Xiaodong Liu, Oleksandr Polozov, and Matthew Richardson, “RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers.” *ACL*, 2020 (<https://arxiv.org/abs/1911.04942>).
 
@@ -842,7 +842,7 @@ xychart-beta
 
 \[10\] Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le, Ed H. Chi, Sharan Narang, *et al.*, “Self-Consistency Improves Chain of Thought Reasoning in Language Models.” *ICLR (Poster)*, 2023 (<https://openreview.net/forum?id=1PL1NIMMrw>).
 
-\[11\] F. Li and H. V. Jagadish, “Constructing an Interactive Natural Language Interface for Relational Databases.” *VLDB*, 2014 (<https://dl.acm.org/doi/10.14778/2735461.2735468>).
+\[11\] V. Zhong, C. Xiong, and R. Socher, “Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017.
 
 \[12\] Dave Bergmann and Cole Stryker, “What is an attention mechanism?” *IBM AI Blog*, 2024 (<https://www.ibm.com/think/topics/attention-mechanism>).
 

@@ -722,24 +722,24 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 ```mermaid
 sankey-beta
 
-Pipeline AI, Pipeline Pass, 16738
-Simple Chat, Chat Pass, 15236
+Pipeline AI, Pipeline Pass, 14738
+Simple Chat, Chat Pass, 12236
 
-Pipeline Pass, Pipeline Spider, 7890
-Pipeline Spider, Spider, 7890
-Chat Pass, Chat Spider, 7044
-Chat Spider, Spider, 7044
+Pipeline Pass, Pipeline Spider, 6890
+Pipeline Spider, Spider, 6890
+Chat Pass, Chat Spider, 5544
+Chat Spider, Spider, 5544
 
-Pipeline Pass, Pipeline WikiSQL, 8848
-Pipeline WikiSQL, WikiSQL, 8848
-Chat Pass, Chat WikiSQL, 8192
-Chat WikiSQL, WikiSQL, 8192
+Pipeline Pass, Pipeline WikiSQL, 7848
+Pipeline WikiSQL, WikiSQL, 7848
+Chat Pass, Chat WikiSQL, 6692
+Chat WikiSQL, WikiSQL, 6692
 
-Pipeline AI,  Failed, 3262
-Simple Chat,  Failed, 4764
+Pipeline AI,  Failed, 5262
+Simple Chat,  Failed, 7764
 ```
 
-查询准确率：与传统单一LLM直接调用相比，采用流水线架构的单智能体模式在Spider数据集上的SQL查询准确率提升了约12%，在WikiSQL上提升约8%。（公平起见，我们也给单一LLM提供了包含上下文的prompt。）
+查询准确率：与传统单一LLM直接调用相比，采用流水线架构的单智能体模式在Spider数据集上的SQL查询准确率提升了约24%，在WikiSQL上提升约17%。（公平起见，我们也给单一LLM提供了包含上下文的prompt。）
 
 ```mermaid
 xychart-beta
@@ -772,13 +772,28 @@ pie title 相似度极小的 SQL 的占比 (Pipeline AI)
 
 进一步考察智能体数量对系统性能的影响，分别设置智能体数量为1、3、5、7进行实验。
 
+```mermaid
+xychart-beta
+    title "系统性能随智能体数量的变化"
+    x-axis [1, 3, 5, 7]
+    y-axis "准确率/%, 稳定性/%" 0 --> 100
+    line []
+    line [33,99,32,66]
+```
+
 实验结果表明，智能体数量增加可以显著提高准确率和稳定性，但数量超过5后，准确率提升趋势变缓，甚至略有下降。
 推测这可能是因为随着智能体数量的增加，模型生成的SQL候选答案多样性提高，而噪声或错误答案的数量也随之增加，导致相似度投票机制中出现干扰现象，使最终选择的SQL不一定更优。
 
-此外，智能体数量的增加显著增加了系统开销，表现为token消耗量的增加和响应延迟的上升。随着智能体数目的增加，更有可能出现单次耗时极久的API请求，由于“木桶效应”，此时该API请求会主导整轮投票决策的时长，导致整体系统效率下降。
+```mermaid
+xychart-beta
+    title "系统耗时随智能体数量的变化"
+    x-axis [1, 3, 5, 7]
+    y-axis "耗时/ms" 0 --> 100
+    line [33,44,55,66]
+    line [33,99,32,66]
+```
 
-具体而言，在智能体数量为1到3时，查询准确率提高最明显，平均约30%；当智能体数量从3增加到5时，准确率进一步提升了约14%。
-但从5增加到7时，准确率仅提升不到4%，甚至在某些复杂查询场景下出现了准确率轻微下降的情况。
+此外，智能体数量的增加显著增加了系统开销，表现为token消耗量的增加和响应延迟的上升。随着智能体数目的增加，更有可能出现单次耗时极久的API请求，由于“木桶效应”，此时该API请求会主导整轮投票决策的时长，导致整体系统效率下降。
 
 权衡成本和性能，本研究推荐智能体数量以5为宜，能够在成本可控的情况下实现准确率与系统效率的最佳平衡。
 未来研究可进一步探讨智能体协作策略和候选SQL筛选机制，以降低智能体数量增加时出现的负面效应，从而在不明显增加成本和耗时的前提下进一步提高系统的准确性和稳定性。

@@ -17,7 +17,7 @@ Text2SQL（Text-to-SQL）旨在将自然语言查询转译到SQL语句，允许�
 
 Text2SQL (Text-to-SQL) aims to translate natural language queries into SQL statements, allowing users to access databases using everyday language.
 Traditional Text2SQL approaches, which rely on template/rule-based methods or deep learning, struggle with complex database schemas and diverse query patterns.
-The recent rise of Large Language Models (LLMs) has introduced a new paradigm for Text2SQL[^1], leveraging their powerful language understanding and generation capabilities to achieve remarkable results.
+The recent rise of Large Language Models (LLMs) has introduced a new paradigm for Text2SQL\[1\], leveraging their powerful language understanding and generation capabilities to achieve remarkable results.
 However, LLMs are not a silver bullet.
 Directly using a single LLM poses challenges such as high token consumption costs, inherent data privacy risks, and instability in generated results.
 
@@ -51,14 +51,14 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
 
 早期Text2SQL系统极度依赖 **模板匹配** 和 **规则解析**。
 典型做法是预先定义一组自然语言问句到SQL模板的映射，程序根据用户查询的关键词或句法结构匹配特定的SQL模板，替换槽位以生成SQL。
-例如，IBM早期的系统可能预置规则：“T中哪些记录的F是V”对应SQL结构 `SELECT * FROM T WHERE F = V` 等。[^3]
+例如，IBM早期的系统可能预置规则：“T中哪些记录的F是V”对应SQL结构 `SELECT * FROM T WHERE F = V` 等。\[3\]
 
 它的缺点很明显：
 - **可扩展性差**：难以覆盖丰富的自然语言表达；
 - **适应性弱**：无法处理未收录的语法或复杂查询。
 
 有研究者开始探索数据驱动的学习方法，这可以减少对人工规则的依赖。
-例如，交互式NLIDB（Natural Language Interface to Database）系统就尝试结合用户澄清提问来改进准确率。[^11]
+例如，交互式NLIDB（Natural Language Interface to Database）系统就尝试结合用户澄清提问来改进准确率。\[11\]
 
 总之，模板和规则方法奠定了Text2SQL的初步基础，其虽有局限性但也推动了后续数据驱动方法的发展。
 
@@ -70,7 +70,7 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
 典型的是将Text2SQL视为机器翻译问题，采用 **Encoder-Decoder** 架构，编码器将自然语言问题编码为向量表示，解码器根据表示生成对应的SQL。
 
 早期工作中，基于循环神经网络（RNN，尤其是LSTM）的模型取得了一定成功。
-例如，Seq2SQL模型通过强化学习优化生成的SQL[^7]；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
+例如，Seq2SQL模型通过强化学习优化生成的SQL\[7\]；SQLNet引入语法模板约束以避免部分错误；TypeSQL利用问题中的实体类型信息辅助生成；优语义解析方法SyntaxSQLNet更是直接解析AST以生成SQL。
 
 但LSTM模型仍有缺点，**长期依赖不足** 和 **跨域泛化弱** 使它们难以有效处理问题中的长距离依赖。
 而且这些模型通常需要在大规模标注的语料上进行训练，可以猜到对于新领域（未知数据库模式）往往表现不佳，事实也确实如此。
@@ -80,7 +80,7 @@ LLM在自然语言理解和生成上崭露出前所未有的能力，使得LLM�
 Transformer通过 **自注意力机制** 能够更有效地捕捉长程依赖和复杂结构关系。
 
 如基于Transformer的SQLova、GPSQL等模型在Spider等baseline上拥有领先性能。
-GraPPa通过在大规模表语料上预训练增强模型对数据库模式的表示能力；RAT-SQL利用关系自注意力网络结合数据库模式信息，实现了对模式的有效编码，被认为是Spider Challenge中的标杆模型之一。[^8]
+GraPPa通过在大规模表语料上预训练增强模型对数据库模式的表示能力；RAT-SQL利用关系自注意力网络结合数据库模式信息，实现了对模式的有效编码，被认为是Spider Challenge中的标杆模型之一。\[8\]
 
 这些预训练模型显著提升了跨领域场景下的性能，缩小与人工编写SQL之间的差距。
 但深度学习模型普遍缺乏对错误的纠正能力，往往“一次生成定成败”，缺少交互式改正的机制。
@@ -90,8 +90,8 @@ GraPPa通过在大规模表语料上预训练增强模型对数据库模式的�
 大语言模型（如GPT-3系列）的出现，为Text2SQL提供了新的范式，即 **基于prompt的零样本/小样本学习**。
 只需精心设计prompt，提供一些示例，LLM就能理解任务要求并生成相应的SQL。
 
-有研究者探索了各种 **Prompt Engineering** 技巧，如链式思维提示（Chain-of-Thought）引导LLM逐步推理复杂查询，将问题分解为子问题并逐一求解，再合成最终SQL。[^2]
-Wang *et al.* (2022) 提出的 **自一致性（Self-Consistency）** 解码策略进一步提升了链式推理的可靠性。[^10]
+有研究者探索了各种 **Prompt Engineering** 技巧，如链式思维提示（Chain-of-Thought）引导LLM逐步推理复杂查询，将问题分解为子问题并逐一求解，再合成最终SQL。\[2\]
+Wang *et al.* (2022) 提出的 **自一致性（Self-Consistency）** 解码策略进一步提升了链式推理的可靠性。\[10\]
 
 另一些工作尝试对开源LLM进行专门的Text2SQL微调，以在保留LLM强大能力的同时，注入领域知识和术语。
 微调的好处在于模型可以学到更贴合数据库查询的风格和约束，从而减少语法错误和不相关输出。
@@ -117,7 +117,7 @@ Wang *et al.* (2022) 提出的 **自一致性（Self-Consistency）** 解码策�
 3. **结果校验与自我修正**：
 
    设计SQL执行校验和错误反馈环节，在真实数据库上执行多轮来验证生成SQL的正确性，后将错误信息反馈给生成智能体进行自我修正。
-   已有研究证明类似的多智能体校对机制可提升查询准确率。[^5]
+   已有研究证明类似的多智能体校对机制可提升查询准确率。\[5\]
    我们的方法实现了自动错误检测和迭代改进，免去人工介入。
 
 4. **全面的优化策略与工程实现**：
@@ -148,7 +148,7 @@ Wang *et al.* (2022) 提出的 **自一致性（Self-Consistency）** 解码策�
 
 ### 注意力机制
 
-**注意力机制（Attention Mechanism）** 最初由Bahdanau *et al.* (2014) 提出，以改进机器翻译中RNN“编码器-解码器”对长序列的处理。[^12]
+**注意力机制（Attention Mechanism）** 最初由Bahdanau *et al.* (2014) 提出，以改进机器翻译中RNN“编码器-解码器”对长序列的处理。\[12\]
 这个理论模拟了人类注意力的选择性：面对冗长的信息，人类会选择性地关注与当前任务相关的要点。
 注意力机制解决了传统编码器将整个输入压缩成单一向量的不充分问题，使得长句子的关键信息不至于淹没在整体表示中。
 
@@ -158,13 +158,13 @@ Wang *et al.* (2022) 提出的 **自一致性（Self-Consistency）** 解码策�
 ### 大语言模型（LLM）
 
 **大语言模型** 指参数规模巨大的深度神经网络模型，通常基于Transformer架构，在海量文本语料上自监督预训练，对自然语言进行深度的理解和生成。
-LLM的 **Few-Shot Learning** 能力极为强大：即使不专门针对某任务训练，通过prompt提供少量示例，LLM也能在新任务上产生相当好的结果。[^18]
+LLM的 **Few-Shot Learning** 能力极为强大：即使不专门针对某任务训练，通过prompt提供少量示例，LLM也能在新任务上产生相当好的结果。\[18\]
 对于Text2SQL任务，LLM能够“理解”自然语言问题并结合给定的数据库schema直接生成SQL查询。
 LLM还掌握了丰富的语言模式和一定的逻辑推理能力，因而表现出更强的泛化性。
 
 纵使LLM存储了海量知识，它的训练数据是静态的且覆盖有限，因此LLM对特定领域中实时更新的信息可能欠缺了解。
 尤其在数据库查询场景中，LLM本身并不“知道”用户数据库的具体内容，因此需要设法将数据库schema等上下文提供给它。
-LLM还存在 **幻觉（hallucination）**，偶尔会编造看似合理但实则错误的答案。[^19]
+LLM还存在 **幻觉（hallucination）**，偶尔会编造看似合理但实则错误的答案。\[19\]
 我们的系统结合RAG等手段，努力让LLM“知有所依”，在生成SQL时参考真实数据库文档或示例，减少无根据的胡乱猜测。
 
 **成本** 是另一个无法忽视的难题：LLM的推理往往需要消耗数百至上千tokens，且耗时极久。
@@ -174,7 +174,7 @@ LLM还存在 **幻觉（hallucination）**，偶尔会编造看似合理但实�
 
 ### 检索增强生成（RAG）
 
-**检索增强生成（Retrieval-Augmented Generation, RAG）** 是一种将生成式模型与外部知识库相结合的技术。[^13]
+**检索增强生成（Retrieval-Augmented Generation, RAG）** 是一种将生成式模型与外部知识库相结合的技术。\[13\]
 RAG通常包含两部分：检索器和生成器。
 检索器根据用户问题从知识库（可以是文档集合、数据库、已知问答对等）中找到若干条相关内容；然后将这些外部知识与原问题一起送入生成模型，综合生成最终回答。
 RAG的优势在于 **将封闭的语言模型变成开放的问答系统**，利用外部最新、权威的数据来提高准确性。
@@ -568,7 +568,7 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 为此，我们对耗时的LLM调用尽可能采取 **异步并行** 处理。
 
 当需要并行生成多条SQL时，我们同时向多个LLM实例发送请求，而不是等待一个返回后再发出下一个请求。
-利用异步I/O和多线程，可以将总耗时降低到最慢的那次调用的时间，而非累计求和。[^20]
+利用异步I/O和多线程，可以将总耗时降低到最慢的那次调用的时间，而非累计求和。\[20\]
 同理，在错误反馈再生成时，如果有多个SQL需要修正，我们也可以并行地请求智能体改正。
 这些并行化明显提高了系统的吞吐量。
 
@@ -579,7 +579,7 @@ Prompt-Generator智能体接收用户查询的澄清版、数据库元信息、�
 #### 上下文缓存
 
 LLM调用的另一个性能瓶颈在于重复的上下文传输和理解，而每次请求对话都需要发送一长串的历史消息记录（数据库schema、范例文档等）在多轮对话中基本是不变的。
-针对这一情况，主流的云端LLM都配备了cache以短期存储LLM运行状态的参数。[^14]
+针对这一情况，主流的云端LLM都配备了cache以短期存储LLM运行状态的参数。\[14\]
 
 我们的系统实践了 **前缀缓存** 机制：尽可能多地设计前缀通用的prompt模板，并复用单轮对话开启多个并行任务。
 具体包括：
@@ -628,14 +628,14 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 例如，在报错解释智能体给用户反馈时，我们预先定义JSON格式的schema，其中包含“error_type”、“suggestion”等字段，方便分析日志。
 得益于openai API提供的JSON响应模式，这一方面消除了LLM自由生成文本带来的不确定性，另一方面也方便程序自动读取处理。
 
-过往的一些工作，如PICARD通过约束模型只能生成符合SQL语法的序列，实际上也是一种结构化输出约束策略：将输出限制在特定的文法或格式。[^9]
+过往的一些工作，如PICARD通过约束模型只能生成符合SQL语法的序列，实际上也是一种结构化输出约束策略：将输出限制在特定的文法或格式。\[9\]
 从我们的经验来看，当明确要求模型输出JSON且提供示例格式时，大多数情况下模型都能遵循，这比起让其输出散文式的解释要可靠得多。
 
-结构化输出策略使系统与LLM的衔接更加紧密，有效减少了解析错误和歧义，屏蔽了无效输出以节约token的同时，强制LLM填充指定字段以不遗漏任何请求的内容。[^15]
+结构化输出策略使系统与LLM的衔接更加紧密，有效减少了解析错误和歧义，屏蔽了无效输出以节约token的同时，强制LLM填充指定字段以不遗漏任何请求的内容。\[15\]
 
 ### 数据安全：事务机制与访问控制
 
-因为有DML的存在，在Text2SQL系统中，必须对潜在的危险SQL进行检测和确认。[^17]
+因为有DML的存在，在Text2SQL系统中，必须对潜在的危险SQL进行检测和确认。\[17\]
 我们的系统通过多层手段保障不会因错误的SQL操作破坏用户数据。
 
 在架构上，所有LLM生成的SQL执行都置于 **数据库事务** 环境中，跑在一个暂存事务里。
@@ -658,7 +658,7 @@ partial mode提高了输出的一致性，为后续结果的处理带来方便�
 
 为了综合评估系统性能，我们选取了广泛使用的Text2SQL基准数据集Spider和WikiSQL。
 
-- Spider数据集：包含多个领域的复杂数据库，具有跨域泛化要求，测试系统对复杂查询及未知schema的泛化能力。[^6]
+- Spider数据集：包含多个领域的复杂数据库，具有跨域泛化要求，测试系统对复杂查询及未知schema的泛化能力。\[6\]
 - WikiSQL数据集：覆盖简单结构的单表查询，适合评估系统在常规的简单查询下的效率和准确性。
 
 评价指标：
@@ -822,45 +822,45 @@ xychart-beta
 
 ## 参考文献
 
-[^1]: Zijin Hong, Zheng Yuan, Qinggang Zhang, Hao Chen, Junnan Dong, Feiran Huang, *et al.*, “Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL.” *arXiv preprint arXiv:2406.08426*, 2024 ([](https://arxiv.org/html/2406.08426v1#:~:text=Generating%20accurate%20SQL%20according%20to,based%20systems.%20Most%20recently%2C%20large)).
+\[1\] Zijin Hong, Zheng Yuan, Qinggang Zhang, Hao Chen, Junnan Dong, Feiran Huang, *et al.*, “Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL.” *arXiv preprint arXiv:2406.08426*, 2024 (<https://arxiv.org/html/2406.08426v1>).
 
-[^2]: Xiaohu Zhu, Qian Li, Lizhen Cui, and Yongkang Liu, “Large Language Model Enhanced Text-to-SQL Generation: A Survey.” *arXiv preprint arXiv:2410.06011*, 2024 ([](https://arxiv.org/html/2410.06011v1#:~:text=Intelligent%20agent,several%20LLM%20Agent%20systems%20that)).
+\[2\] Xiaohu Zhu, Qian Li, Lizhen Cui, and Yongkang Liu, “Large Language Model Enhanced Text-to-SQL Generation: A Survey.” *arXiv preprint arXiv:2410.06011*, 2024 (<https://arxiv.org/html/2410.06011v1>).
 
-[^3]: Laura Chiticariu, Rajasekar Krishnamurthy, Yunyao Li, Sriram Raghavan, Frederick R. Reiss, and Shivakumar Vaithyanathan, “SystemT: an algebraic approach to declarative information extraction.” *ACL*, 2010 ([](https://dl.acm.org/doi/10.5555/1858681.1858695)).
+\[3\] Laura Chiticariu, Rajasekar Krishnamurthy, Yunyao Li, Sriram Raghavan, Frederick R. Reiss, and Shivakumar Vaithyanathan, “SystemT: an algebraic approach to declarative information extraction.” *ACL*, 2010 (<https://dl.acm.org/doi/10.5555/1858681.1858695>).
 
-[^4]: Chen Shen, Jin Wang, Sajjadur Rahman, and Eser Kandogan, “Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models (MageSQL).” *CIKM (Demo)*, 2024 ([](https://megagon.ai/publications/demonstration-of-a-multi-agent-framework-for-text-to-sql-applications-with-large-language-models/#:~:text=The%20Text,modify%20the%20agents%20with%20different)).
+\[4\] Chen Shen, Jin Wang, Sajjadur Rahman, and Eser Kandogan, “Demonstration of a Multi-agent Framework for Text to SQL Applications with Large Language Models (MageSQL).” *CIKM (Demo)*, 2024 (<https://megagon.ai/publications/demonstration-of-a-multi-agent-framework-for-text-to-sql-applications-with-large-language-models/>).
 
-[^5]: Z. Wang, R. Zhang, Z. Nie, and J. Kim, “Tool-assisted Agent on SQL Inspection and Refinement in Real-world Scenarios.” *arXiv preprint arXiv:2408.16991*, 2024 ([](https://arxiv.org/html/2410.06011v1#:~:text=Tool,corresponding%20cells%20in%20the%20database)).
+\[5\] Z. Wang, R. Zhang, Z. Nie, and J. Kim, “Tool-assisted Agent on SQL Inspection and Refinement in Real-world Scenarios.” *arXiv preprint arXiv:2408.16991*, 2024.
 
-[^6]: Zijin Hong, Zheng Yuan, Qinggang Zhang, Hao Chen, Junnan Dong, Feiran Huang, *et al.*, “Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task.” *EMNLP*, 2018 ([](https://arxiv.org/html/2406.08426v1#:~:text=Image%3A%20Refer%20to%20caption%20Figure,to%20answer%20the%20user%20question)).
+\[6\] Tao Yu, Rui Zhang, Kai Yang, Michihiro Yasunaga, Dongxu Wang, Zifan Li, *et al.*, “Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task.” *EMNLP*, 2018 (<https://arxiv.org/abs/1809.08887>).
 
-[^7]: V. Zhong, C. Xiong, and R. Socher, “Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017 ([](https://arxiv.org/html/2410.06011v1#:~:text=,to%20yield%20abstract%20syntax%20trees)).
+\[7\] V. Zhong, C. Xiong, and R. Socher, “Seq2SQL: Generating Structured Queries from Natural Language using Reinforcement Learning.” *arXiv preprint arXiv:1709.00103*, 2017.
 
-[^8]: B. Wang, R. Shin, X. Liu, O. Polozov, and M. Richardson, “RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers.” *ACL*, 2020 ([](https://arxiv.org/html/2410.06011v1#:~:text=language%20questions%20and%20database%20tables,to%20yield%20abstract%20syntax%20trees)).
+\[8\] Bailin Wang, Richard Shin, Xiaodong Liu, Oleksandr Polozov, and Matthew Richardson, “RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers.” *ACL*, 2020 (<https://arxiv.org/abs/1911.04942>).
 
-[^9]: T. Scholak, N. Schucher, and D. Bahdanau, “PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models.” *EMNLP*, 2021 ([](https://arxiv.org/html/2410.06011v1#:~:text=linking%2C%20columns%2C%20and%20data%20values,task)).
+\[9\] Torsten Scholak, Nathan Schucher, and Dzmitry Bahdanau, “PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models.” *EMNLP*, 2021 (<https://arxiv.org/abs/2109.05093>).
 
-[^10]: Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le, Ed H. Chi, Sharan Narang, *et al.*, “Self-Consistency Improves Chain of Thought Reasoning in Language Models.” *ICLR (Poster)*, 2023 ([](https://openreview.net/forum?id=1PL1NIMMrw#:~:text=paper%2C%20we%20propose%20a%20new,and%20commonsense%20reasoning%20benchmarks%2C%20including)).
+\[10\] Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le, Ed H. Chi, Sharan Narang, *et al.*, “Self-Consistency Improves Chain of Thought Reasoning in Language Models.” *ICLR (Poster)*, 2023 (<https://openreview.net/forum?id=1PL1NIMMrw>).
 
-[^11]: F. Li and H. V. Jagadish, “Constructing an Interactive Natural Language Interface for Relational Databases.” *VLDB*, 2014 ([](https://arxiv.org/html/2406.08426v1#:~:text=,Radev)).
+\[11\] F. Li and H. V. Jagadish, “Constructing an Interactive Natural Language Interface for Relational Databases.” *VLDB*, 2014 (<https://dl.acm.org/doi/10.14778/2735461.2735468>).
 
-[^12]: Dave Bergmann and Cole Stryker, “What is an attention mechanism?” *IBM AI Blog*, 2024 ([](https://www.ibm.com/think/topics/attention-mechanism#:~:text=An%20attention%20mechanism%20is%20a,power%20popular%20applications%20like%20ChatGPT)).
+\[12\] Dave Bergmann and Cole Stryker, “What is an attention mechanism?” *IBM AI Blog*, 2024 (<https://www.ibm.com/think/topics/attention-mechanism>).
 
-[^13]: “What is RAG (Retrieval-Augmented Generation)?” *AWS AI Blog*, 2023 ([](https://aws.amazon.com/what-is/retrieval-augmented-generation/#:~:text=Retrieval,relevant%2C%20accurate%2C%20and%20useful%20in)).
+\[13\] “What is RAG (Retrieval-Augmented Generation)?” *AWS AI Blog*, 2023 (<https://aws.amazon.com/what-is/retrieval-augmented-generation/>).
 
-[^14]: In Gim, Guojun Chen, Seung-seob Lee, Nikhil Sarda, Anurag Khandelwal, and Lin Zhong, “Prompt Cache: Modular Attention Reuse for Low-Latency Inference” *MLSys*, 2024 ([](https://arxiv.org/abs/2311.04934)).
+\[14\] In Gim, Guojun Chen, Seung-seob Lee, Nikhil Sarda, Anurag Khandelwal, and Lin Zhong, “Prompt Cache: Modular Attention Reuse for Low-Latency Inference” *MLSys*, 2024 (<https://arxiv.org/abs/2311.04934>).
 
-[^15]: Michael Xieyang Liu, Frederick Liu, Alexander J. Fiannaca, Terry Koo, Lucas Dixon, Michael Terry, *et al.*, “"We Need Structured Output": Towards User-centered Constraints on Large Language Model Output.” *CHI EA*, 2024 ([](https://dl.acm.org/doi/10.1145/3613905.3650756)).
+\[15\] Michael Xieyang Liu, Frederick Liu, Alexander J. Fiannaca, Terry Koo, Lucas Dixon, Michael Terry, *et al.*, “"We Need Structured Output": Towards User-centered Constraints on Large Language Model Output.” *CHI EA*, 2024 (<https://dl.acm.org/doi/10.1145/3613905.3650756>).
 
-[^16]: Sandeep Tata and Jignesh M. Patel, “Estimating the selectivity of tf-idf based cosine similarity predicates.” *ACM SIGMOD Record*, 2007 ([](https://dl.acm.org/doi/abs/10.1145/1328854.1328855)).
+\[16\] Sandeep Tata and Jignesh M. Patel, “Estimating the selectivity of tf-idf based cosine similarity predicates.” *ACM SIGMOD Record*, 2007 (<https://dl.acm.org/doi/abs/10.1145/1328854.1328855>).
 
-[^17]: Xutan Peng, Yipeng Zhang, Jingfeng Yang, and Mark Stevenson, “On the Vulnerabilities of Text-to-SQL Models.” *IEEE*, 2023 ([](https://ieeexplore.ieee.org/abstract/document/10301242)).
+\[17\] Xutan Peng, Yipeng Zhang, Jingfeng Yang, and Mark Stevenson, “On the Vulnerabilities of Text-to-SQL Models.” *IEEE*, 2023 (<https://ieeexplore.ieee.org/abstract/document/10301242>).
 
-[^18]: Yaqing Wang, Quanming Yao, James T. Kwok and Lionel M. Ni, “Generalizing from a Few Examples: A Survey on Few-shot Learning.” *ACM*, 2020 ([](https://dl.acm.org/doi/abs/10.1145/3386252)).
+\[18\] Yaqing Wang, Quanming Yao, James T. Kwok and Lionel M. Ni, “Generalizing from a Few Examples: A Survey on Few-shot Learning.” *ACM*, 2020 (<https://dl.acm.org/doi/abs/10.1145/3386252>).
 
-[^19]: Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong, Zhangyin Feng, Haotian Wang, *et al.*, “A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions.” *ACM*, 2025 ([](https://dl.acm.org/doi/abs/10.1145/3703155)).
+\[19\] Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong, Zhangyin Feng, Haotian Wang, *et al.*, “A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions.” *ACM*, 2025 (<https://dl.acm.org/doi/abs/10.1145/3703155>).
 
-[^20]: Brian Quinlan, “PEP 3148 – futures - execute computations asynchronously.” *Python Enhancement Proposals*, 2009 ([](https://peps.python.org/pep-3148/)).
+\[20\] Brian Quinlan, “PEP 3148 – futures - execute computations asynchronously.” *Python Enhancement Proposals*, 2009 (<https://peps.python.org/pep-3148/>).
 
 <!-- Local Variables: -->
 <!-- eval: (electric-quote-local-mode -1) -->

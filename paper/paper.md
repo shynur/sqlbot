@@ -1,4 +1,4 @@
-# 基于多智能体 LLM 的 Text2SQL 系统设计与实现 (Design and Implementation of a Multi-Agent LLM-Based Text2SQL System)
+# 基于多智能体LLM的Text2SQL系统设计与实现 (Design and Implementation of a Multi-Agent LLM-Based Text2SQL System)
 
 ## 摘要
 

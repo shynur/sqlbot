@@ -351,7 +351,7 @@ graph LR
 graph TB
 
 subgraph 生成 SQL
-    gen_prompt("`Prompt 生成<br>智能体`") ==prompt==> AI_gen_sql("`SQL 生成<br>智能体<br>(复数)`")
+    AI_gen_prompt("`Prompt 生成<br>智能体`") ==prompt==> AI_gen_sql("`SQL 生成<br>智能体<br>(复数)`")
     check_sql{"`校验<br>SQL<br>合法性`"}
     AI_gen_sql ==> sql1@{ shape: braces, label: "SQL<br>代码<br>(复数)" } ==> check_sql
     check_sql ==通过==> sql2@{ shape: braces, label: "通过<br>校验的<br>SQL 代码<br>(复数)" }

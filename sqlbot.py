@@ -1,5 +1,5 @@
 #! /bin/python3.13
-# -*- coding: utf-8-unix; -*-
+# -*- coding: utf-8 -*-
 
 import re
 import sqlite3

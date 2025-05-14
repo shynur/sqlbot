@@ -157,7 +157,8 @@ class LLM:
             )
         if "qwen_coder" not in _locals:
             _locals["qwen_coder"] = LLM(
-                model_name="qwen2.5-coder-1.5b-instruct",
+                # 不支持结构化输出, 见 <https://help.aliyun.com/zh/model-studio/json-mode>.
+                model_name="qwen2.5-coder-3b-instruct",
                 API_KEY="TongYiQianWen_API_key",
                 base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             )
@@ -403,7 +404,7 @@ def get_background(user_query: str) -> str:
 
         # 通义千问's bug:
         if response.startswith("```"):
-            response = "\n".join(response.splitlines()[1:]).split("```")[1]
+            response = "\n".join(response.splitlines()[1:]).split("```")[0].strip()
         logger.info(f"\033[32m相关表\033[0m {response=!r}")
 
         match (related_tables := json.loads(response)).__class__.__name__:
